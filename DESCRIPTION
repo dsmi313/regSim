@@ -13,3 +13,5 @@ Imports:
     tidyr,
     ggplot2,
     plotly
+Suggests:
+    testthat (>= 3.0.0)

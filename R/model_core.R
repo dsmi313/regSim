@@ -1,0 +1,284 @@
+# make_growth_matrix: builds the length-bin transition matrix and age-1 recruit
+# size distribution from von Bertalanffy parameters.
+# Returns list(Growth_matrix, recruit_dist).
+make_growth_matrix <- function(Linf, vbk, t0, bin_midpoints, length_bins, growth_cv) {
+  L_bins   <- length(bin_midpoints)
+  bin_width <- length_bins[2] - length_bins[1]
+
+  Growth_matrix <- matrix(0, nrow = L_bins, ncol = L_bins)
+  for (i in seq_len(L_bins)) {
+    current_length   <- bin_midpoints[i]
+    growth_increment <- max(0.1, (Linf - current_length) * (1 - exp(-vbk)))
+    expected_length  <- current_length + growth_increment
+
+    if (growth_cv == 0) {
+      next_bin <- which.min(abs(bin_midpoints - expected_length))
+      Growth_matrix[i, next_bin] <- 1
+      next
+    }
+
+    growth_sd <- max(1, growth_increment * growth_cv, bin_width * 0.15)
+    if (current_length >= Linf * 0.99) {
+      growth_increment <- 0.1
+      growth_sd        <- max(1, bin_width * 0.15)
+      expected_length  <- current_length + growth_increment
+    }
+
+    for (j in seq_len(L_bins)) {
+      Growth_matrix[i, j] <- pnorm(length_bins[j + 1], expected_length, growth_sd) -
+                              pnorm(length_bins[j],     expected_length, growth_sd)
+    }
+    row_sum <- sum(Growth_matrix[i, ])
+    if (row_sum > 0) {
+      Growth_matrix[i, ] <- Growth_matrix[i, ] / row_sum
+    } else {
+      Growth_matrix[i, i] <- 1.0
+    }
+  }
+
+  age1_mean_length <- Linf * (1 - exp(-vbk * (1 - t0)))
+  recruit_dist     <- rep(0, L_bins)
+
+  if (growth_cv == 0) {
+    recruit_dist[which.min(abs(bin_midpoints - age1_mean_length))] <- 1.0
+  } else {
+    age1_sd_length <- max(0.5, age1_mean_length * growth_cv)
+    for (j in seq_len(L_bins)) {
+      recruit_dist[j] <- max(0, pnorm(length_bins[j + 1], age1_mean_length, age1_sd_length) -
+                                 pnorm(length_bins[j],     age1_mean_length, age1_sd_length))
+    }
+    if (sum(recruit_dist) > 0) {
+      recruit_dist <- recruit_dist / sum(recruit_dist)
+    } else {
+      recruit_dist[which.min(abs(bin_midpoints - age1_mean_length))] <- 1.0
+    }
+  }
+
+  list(Growth_matrix = Growth_matrix, recruit_dist = recruit_dist)
+}
+
+
+# make_vulnerability_curves: computes all size-based selectivity, fecundity, and
+# natural-mortality arrays that do not depend on exploitation rate U.
+# Returns a named list of per-bin vectors.
+make_vulnerability_curves <- function(bin_midpoints,
+                                      Capsize, Harvlim,
+                                      mat_size, memorable_size,
+                                      wl_a, wl_b, nat_mort, fec_exp,
+                                      enable_slot     = FALSE,
+                                      slot_type       = "traditional",
+                                      slot_upper      = NULL,
+                                      enable_max_limit = FALSE,
+                                      max_harvest_size = NULL) {
+  CapsizeSD  <- Capsize * 0.01
+  HarvlimSD  <- Harvlim * 0.01
+
+  Wt_bins            <- (wl_a * bin_midpoints ^ wl_b) / 1000
+  Wmat               <- (wl_a * mat_size ^ wl_b) / 1000
+  maturity_ogive_bins <- 1 / (1 + exp(-(Wt_bins - Wmat) / (Wmat * 0.1)))
+  Fec_bins           <- (Wt_bins ^ fec_exp) * maturity_ogive_bins
+
+  Vulcap_bins <- 1 / (1 + exp(-(bin_midpoints - Capsize) / CapsizeSD))
+
+  if (enable_slot) {
+    slope        <- 0.01
+    Effective_min        <- max(Harvlim, Capsize)
+    Vulharv_above_min    <- 1 / (1 + exp(-(bin_midpoints - Effective_min) / slope))
+    Vulharv_below_max    <- 1 / (1 + exp( (bin_midpoints - slot_upper)    / slope))
+    if (slot_type == "traditional") {
+      Vulharv_bins <- Vulharv_above_min * Vulharv_below_max
+    } else {
+      Vulharv_bins <- (1 - (Vulharv_above_min * Vulharv_below_max)) * Vulcap_bins
+    }
+  } else if (enable_max_limit) {
+    Vulharv_below_max <- 1 / (1 + exp((bin_midpoints - max_harvest_size) / 0.01))
+    Vulharv_bins      <- Vulcap_bins * Vulharv_below_max
+  } else {
+    Vulharv_bins <- 1 / (1 + exp(-(bin_midpoints - Harvlim) / HarvlimSD))
+  }
+
+  trophyvul_bins <- (1 / (1 + exp(-(bin_midpoints - memorable_size) /
+                                   (memorable_size * 0.1)))) * Vulcap_bins
+
+  M_adult <- nat_mort
+  M_bins  <- rep(M_adult, length(bin_midpoints))
+  juv_threshold <- mat_size * 0.5
+  M_bins[bin_midpoints <  juv_threshold]                              <- M_adult * 2.0
+  M_bins[bin_midpoints >= juv_threshold & bin_midpoints < mat_size]   <- M_adult * 1.5
+  S_bins <- exp(-M_bins)
+
+  list(
+    Vulcap_bins         = Vulcap_bins,
+    Vulharv_bins        = Vulharv_bins,
+    trophyvul_bins      = trophyvul_bins,
+    Fec_bins            = Fec_bins,
+    Wt_bins             = Wt_bins,
+    M_bins              = M_bins,
+    S_bins              = S_bins,
+    maturity_ogive_bins = maturity_ogive_bins
+  )
+}
+
+
+# run_population_simulation: age/length-structured stochastic forward simulation.
+# All pre-computed bin arrays are passed in; this function is free of Shiny
+# dependencies and is fully unit-testable.
+#
+# progress_fn: optional function(k, nsim) called each replicate (for Shiny progress bars).
+# collect_full_output: when TRUE returns the per-year, per-sim matrices needed for
+#   time-series and population-structure plots; set FALSE for yield-curve sweeps.
+#
+# Returns a list with:
+#   sim_df          - data.frame: sim, YPR, SPR, Prop, MeanLengthHarvested, Recruit
+#   burnin_years    - integer
+#   (if collect_full_output) all_YPR, all_SPR, all_Prop, all_SSB,
+#                             all_Abundance, all_AgeAbundance
+run_population_simulation <- function(bin_midpoints, length_bins,
+                                      Growth_matrix, recruit_dist,
+                                      Vulcap_bins, Vulharv_bins, trophyvul_bins,
+                                      Fec_bins, Wt_bins, S_bins,
+                                      Amax, Ymax,
+                                      Ro, rec_cv, U, DisMort, nsim,
+                                      enable_ddr        = FALSE,
+                                      steepness         = 0.7,
+                                      enable_depensation = FALSE,
+                                      collect_full_output = TRUE,
+                                      progress_fn       = NULL) {
+  L_bins <- length(bin_midpoints)
+
+  F_bins            <- Vulharv_bins * U
+  Release_mort_bins <- (Vulcap_bins - Vulharv_bins) * U * DisMort
+  Survival_bins     <- S_bins * (1 - F_bins) * (1 - Release_mort_bins)
+
+  sigmaR       <- sqrt(log(rec_cv ^ 2 + 1))
+  burnin_years <- min(Ymax, Amax + 20)
+
+  sim_df <- data.frame(
+    sim                = seq_len(nsim),
+    YPR                = rep(NA_real_, nsim),
+    SPR                = rep(NA_real_, nsim),
+    Prop               = rep(NA_real_, nsim),
+    MeanLengthHarvested = rep(NA_real_, nsim),
+    Recruit            = rep(NA_real_, nsim)
+  )
+
+  if (collect_full_output) {
+    all_YPR          <- matrix(NA_real_, Ymax, nsim)
+    all_SPR          <- matrix(NA_real_, Ymax, nsim)
+    all_Prop         <- matrix(NA_real_, Ymax, nsim)
+    all_SSB          <- matrix(NA_real_, Ymax, nsim)
+    all_Abundance    <- matrix(NA_real_, L_bins, nsim)
+    all_AgeAbundance <- matrix(NA_real_, Amax,   nsim)
+  }
+
+  for (k in seq_len(nsim)) {
+    if (!is.null(progress_fn)) progress_fn(k, nsim)
+
+    N       <- matrix(0, Ymax, L_bins)
+    age_len <- matrix(0, Amax, L_bins)
+    Yield   <- rep(NA_real_, Ymax)
+    SPRt    <- rep(NA_real_, Ymax)
+    YPR     <- rep(NA_real_, Ymax)
+    Prop    <- rep(NA_real_, Ymax)
+    SSBt    <- rep(NA_real_, Ymax)
+
+    age_len[1, ] <- Ro * recruit_dist
+    N[1, ]       <- colSums(age_len)
+    SSB_burnin   <- rep(NA_real_, burnin_years)
+    SSB_burnin[1] <- sum(N[1, ] * Fec_bins)
+
+    for (init_year in 2:burnin_years) {
+      age_survive <- age_len * matrix(S_bins, nrow = Amax, ncol = L_bins, byrow = TRUE)
+      new_age_len <- matrix(0, Amax, L_bins)
+      for (a in 1:(Amax - 1)) {
+        new_age_len[a + 1, ] <- as.vector(age_survive[a, ] %*% Growth_matrix)
+      }
+      new_age_len[1, ] <- new_age_len[1, ] + (Ro * rlnorm(1, 0, sd = sigmaR)) * recruit_dist
+      age_len          <- new_age_len
+      N[init_year, ]   <- colSums(age_len)
+      SSB_burnin[init_year] <- sum(N[init_year, ] * Fec_bins)
+    }
+
+    burnin_start <- max(1L, burnin_years - 9L)
+    SPR_denom    <- mean(SSB_burnin[burnin_start:burnin_years], na.rm = TRUE)
+    SSB0         <- SPR_denom
+
+    if (isTRUE(enable_ddr)) {
+      Rcapacity <- rep(NA_real_, Ymax)
+    } else if (rec_cv == 0) {
+      Rcapacity <- rep(Ro, Ymax)
+    } else {
+      Rcapacity <- Ro * rlnorm(Ymax, 0, sd = sigmaR)
+    }
+
+    for (yr in seq_len(burnin_years)) {
+      Yield[yr] <- 0
+      SSBt[yr]  <- sum(N[yr, ] * Fec_bins)
+      SPRt[yr]  <- SSBt[yr] / SPR_denom
+      YPR[yr]   <- 0
+      Prop[yr]  <- sum(trophyvul_bins * N[yr, ]) / max(1, sum(N[yr, ]))
+    }
+
+    start_year <- min(burnin_years + 1L, Ymax)
+    for (i in start_year:Ymax) {
+      if (isTRUE(enable_ddr)) {
+        SSB_t <- max(0, sum(N[i - 1, ] * Fec_bins))
+        R_BH  <- (4 * steepness * Ro * SSB_t) /
+                 (SSB0 * (1 - steepness) + (5 * steepness - 1) * SSB_t)
+        R_BH  <- max(1, R_BH)
+        if (isTRUE(enable_depensation) && SSB_t < 0.2 * SSB0) {
+          R_BH <- R_BH * (SSB_t / (0.2 * SSB0)) ^ 2
+        }
+        Rcapacity[i] <- if (rec_cv == 0) max(1, R_BH) else max(1, R_BH * rlnorm(1, 0, sd = sigmaR))
+      }
+
+      age_survive <- age_len * matrix(Survival_bins, nrow = Amax, ncol = L_bins, byrow = TRUE)
+      new_age_len <- matrix(0, Amax, L_bins)
+      for (a in 1:(Amax - 1)) {
+        new_age_len[a + 1, ] <- as.vector(age_survive[a, ] %*% Growth_matrix)
+      }
+      new_age_len[1, ] <- new_age_len[1, ] + Rcapacity[i] * recruit_dist
+      age_len          <- new_age_len
+      N[i, ]           <- colSums(age_len)
+      Yield[i]         <- sum(Wt_bins * Vulharv_bins * N[i, ]) * U
+      SSBt[i]          <- sum(N[i, ] * Fec_bins)
+      SPRt[i]          <- SSBt[i] / SPR_denom
+      YPR[i]           <- Yield[i] / max(1, Rcapacity[i])
+      Prop[i]          <- sum(trophyvul_bins * N[i, ]) / max(1, sum(N[i, ]))
+    }
+
+    last_50_start <- max(start_year, Ymax - 49L)
+    idx           <- last_50_start:Ymax
+    sim_df$SPR[k]     <- mean(SPRt[idx],     na.rm = TRUE)
+    sim_df$YPR[k]     <- mean(YPR[idx],      na.rm = TRUE)
+    sim_df$Prop[k]    <- mean(Prop[idx],     na.rm = TRUE)
+    sim_df$Recruit[k] <- mean(Rcapacity[idx], na.rm = TRUE)
+
+    harvest_lengths <- vapply(idx, function(yr) {
+      hb <- N[yr, ] * Vulharv_bins * U
+      th <- sum(hb)
+      if (th > 0) sum(hb * bin_midpoints) / th else NA_real_
+    }, numeric(1))
+    sim_df$MeanLengthHarvested[k] <- mean(harvest_lengths, na.rm = TRUE)
+
+    if (collect_full_output) {
+      all_YPR[, k]          <- YPR
+      all_SPR[, k]          <- SPRt
+      all_Prop[, k]         <- Prop
+      all_SSB[, k]          <- SSBt
+      all_Abundance[, k]    <- N[Ymax, ]
+      all_AgeAbundance[, k] <- rowSums(age_len)
+    }
+  }
+
+  out <- list(sim_df = sim_df, burnin_years = burnin_years)
+  if (collect_full_output) {
+    out$all_YPR          <- all_YPR
+    out$all_SPR          <- all_SPR
+    out$all_Prop         <- all_Prop
+    out$all_SSB          <- all_SSB
+    out$all_Abundance    <- all_Abundance
+    out$all_AgeAbundance <- all_AgeAbundance
+  }
+  out
+}
