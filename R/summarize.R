@@ -63,15 +63,18 @@ summarize_length_data <- function(sim_out, bin_midpoints, vc) {
     Abundance_mean   = rowMeans(sim_out$all_Abundance, na.rm = TRUE),
     Abundance_median = apply(sim_out$all_Abundance, 1, median,   na.rm = TRUE),
     Abundance_sd     = apply(sim_out$all_Abundance, 1, sd,       na.rm = TRUE),
-    Abundance_q25    = apply(sim_out$all_Abundance, 1, quantile, probs = 0.25, na.rm = TRUE),
-    Abundance_q75    = apply(sim_out$all_Abundance, 1, quantile, probs = 0.75, na.rm = TRUE),
+    Abundance_q25    = apply(sim_out$all_Abundance, 1, quantile,
+                             probs = 0.25, na.rm = TRUE),
+    Abundance_q75    = apply(sim_out$all_Abundance, 1, quantile,
+                             probs = 0.75, na.rm = TRUE),
     VulCapture       = vc$Vulcap_bins,
     VulHarvest       = vc$Vulharv_bins,
     VulTrophy        = vc$trophyvul_bins
   )
   length_data$Abundance_lower <- pmax(0,
     length_data$Abundance_mean - 1.96 * length_data$Abundance_sd)
-  length_data$Abundance_upper <- length_data$Abundance_mean + 1.96 * length_data$Abundance_sd
+  length_data$Abundance_upper <-
+    length_data$Abundance_mean + 1.96 * length_data$Abundance_sd
   length_data
 }
 
