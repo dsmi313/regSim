@@ -258,7 +258,8 @@ run_population_simulation <- function(bin_midpoints, length_bins,
       for (a in 1:(Amax - 1)) {
         new_age_len[a + 1, ] <- as.vector(age_survive[a, ] %*% Growth_matrix)
       }
-      new_age_len[1, ] <- new_age_len[1, ] + (Ro * rlnorm(1, 0, sd = sigmaR)) * recruit_dist
+      new_age_len[1, ] <- new_age_len[1, ] +
+        (Ro * rlnorm(1, 0, sd = sigmaR)) * recruit_dist
       age_len          <- new_age_len
       N[init_year, ]   <- colSums(age_len)
       SSB_burnin[init_year] <- sum(N[init_year, ] * Fec_bins)
@@ -294,10 +295,12 @@ run_population_simulation <- function(bin_midpoints, length_bins,
         if (isTRUE(enable_depensation) && SSB_t < 0.2 * SSB0) {
           R_BH <- R_BH * (SSB_t / (0.2 * SSB0)) ^ 2
         }
-        Rcapacity[i] <- if (rec_cv == 0) max(1, R_BH) else max(1, R_BH * rlnorm(1, 0, sd = sigmaR))
+        Rcapacity[i] <- if (rec_cv == 0) max(1, R_BH) else
+          max(1, R_BH * rlnorm(1, 0, sd = sigmaR))
       }
 
-      age_survive <- age_len * matrix(Survival_bins, nrow = Amax, ncol = L_bins, byrow = TRUE)
+      age_survive <- age_len *
+        matrix(Survival_bins, nrow = Amax, ncol = L_bins, byrow = TRUE)
       new_age_len <- matrix(0, Amax, L_bins)
       for (a in 1:(Amax - 1)) {
         new_age_len[a + 1, ] <- as.vector(age_survive[a, ] %*% Growth_matrix)
