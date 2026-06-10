@@ -1,0 +1,49 @@
+# Runs the testthat tests automatically on GitHub.
+# A green check means all tests passed; a red X means a test failed
+# (click it to see which one).
+#
+# Triggers are scoped so each commit is tested exactly once:
+#   - pull_request: tests every PR branch
+#   - push to main: tests main after a PR is merged
+# (Triggering on push to all branches AND on pull_request would run the
+# workflow twice for every commit on a branch that has an open PR.)
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:   # lets you also run it manually from the Actions tab
+
+# Cancel an in-progress run if a newer commit is pushed to the same branch/PR.
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - name: Install package dependencies
+        uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: |
+            any::testthat
+            any::devtools
+          needs: check
+
+      - name: Run testthat tests
+        run: Rscript -e 'devtools::test(stop_on_failure = TRUE)'
+        shell: bash
