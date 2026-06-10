@@ -1,10 +1,14 @@
 Package: regSim
 Type: Package
-Title: YPR and SPR Interactive Shiny App
-Version: 0.0.1
-Authors@R: person(given = "Auto", family = "Generated", role = c("aut", "cre"), email = "noreply@example.com")
-Description: A standalone Shiny application for yield-per-recruit (YPR) and spawning potential ratio (SPR) analysis in age-structured fish population models.
-License: MIT
+Title: YPR and SPR interactive Shiny app for fisheries management
+Version: 0.1.0
+Authors@R: person(given = "David R.", family = "Smith", role = c("aut", "cre"),
+    email = "fish.dzs0017@gmail.com")
+Description: An interactive Shiny application for yield-per-recruit (YPR) and
+    spawning potential ratio (SPR) analysis in age-structured fish population
+    models. Includes exported modeling functions for growth, vulnerability,
+    simulation, summary statistics, and yield-curve analysis.
+License: MIT + file LICENSE
 Encoding: UTF-8
 Imports:
     shiny,
