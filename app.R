@@ -73,8 +73,8 @@ ui <- fluidPage(
       numericInput("vbk", "K:", value = 0.374, min = 0.01, max = 1.5, step = 0.001),
       numericInput("t0", "t0:", value = 0.197, min = -1.0, max = 2.0, step = 0.001),
       
-      numericInput("growth_cv", "Growth CV:", value = 0.15, min = 0.0, max = 0.5, step = 0.05),
-      helpText(tags$small(tags$em("Coefficient of variation for length-at-age (0 = deterministic, 0.15 = 15% variation)"))),
+      numericInput("growth_cv", "Growth CV:", value = 0.20, min = 0.0, max = 0.5, step = 0.05),
+      helpText(tags$small(tags$em("Coefficient of variation for length-at-age (0 = deterministic, 0.20 = 20% variation). Higher values produce more realistic overlapping size modes in the length-frequency distribution; lower values produce clearly delineated year-class modes. Adjust to match the modal structure in your observed data."))),
       
       # Exploitation Parameters
       h4("Exploitation Parameters"),
@@ -176,7 +176,9 @@ ui <- fluidPage(
                  plotlyOutput("pop_structure", height = "500px"),
                  br(),
                  h4("Length-Frequency Distribution"),
-                 helpText("Shows the distribution of fish lengths in the equilibrium population. Bars show mean abundance, shaded area shows 95% prediction interval (mean ± 1.96 × SD)."),
+                 helpText("Shows the distribution of fish lengths in the equilibrium population. Bars show mean abundance, shaded area shows 95% prediction interval (mean ± 1.96 × SD).",
+                          tags$br(),
+                          tags$strong("Tip:"), " If year-class modes appear too sharply delineated compared to your data, increase the Growth CV parameter. A CV of 0.20 or higher typically produces the overlapping modes seen in most field length-frequency samples."),
                  plotlyOutput("length_frequency", height = "400px"),
                  br(),
                  h4("Vulnerability by Length"),
