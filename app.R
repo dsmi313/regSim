@@ -5,7 +5,11 @@ library(ggplot2)
 library(plotly)
 
 source("R/species_presets.R")
+source("R/growth_presets.R")
+source("R/length_bins.R")
 source("R/model_core.R")
+source("R/summarize.R")
+source("R/yield_curve.R")
 source("R/validation_checks.R")
 
 # UI Definition
@@ -354,125 +358,10 @@ server <- function(input, output, session) {
   # Observer to update growth parameters when preset is selected
   observeEvent(input$growth_preset, {
     req(input$species, input$growth_preset)
-    if (input$species == "white_crappie") {
-      if (input$growth_preset == "slow") {
-        updateNumericInput(session, "linf", value = 333)
-        updateNumericInput(session, "vbk", value = 0.325)
-        updateNumericInput(session, "t0", value = 0.174)
-        updateNumericInput(session, "nat_mort", value = 0.325)
-      } else if (input$growth_preset == "moderate") {
-        updateNumericInput(session, "linf", value = 353)
-        updateNumericInput(session, "vbk", value = 0.374)
-        updateNumericInput(session, "t0", value = 0.197)
-        updateNumericInput(session, "nat_mort", value = 0.374)
-      } else if (input$growth_preset == "fast") {
-        updateNumericInput(session, "linf", value = 356)
-        updateNumericInput(session, "vbk", value = 0.691)
-        updateNumericInput(session, "t0", value = -0.056)
-        updateNumericInput(session, "nat_mort", value = 0.691)
-      }
-    } else if (input$species == "black_crappie") {
-      if (input$growth_preset == "slow") {
-        updateNumericInput(session, "linf", value = 440)
-        updateNumericInput(session, "vbk", value = 0.17)
-        updateNumericInput(session, "t0", value = 0.34)
-        updateNumericInput(session, "nat_mort", value = 0.17)
-      } else if (input$growth_preset == "moderate") {
-        updateNumericInput(session, "linf", value = 381)
-        updateNumericInput(session, "vbk", value = 0.19)
-        updateNumericInput(session, "t0", value = 0.34)
-        updateNumericInput(session, "nat_mort", value = 0.19)
-      } else if (input$growth_preset == "fast") {
-        updateNumericInput(session, "linf", value = 356)
-        updateNumericInput(session, "vbk", value = 0.26)
-        updateNumericInput(session, "t0", value = 0.34)
-        updateNumericInput(session, "nat_mort", value = 0.26)
-      }
-    } else if (input$species == "walleye") {
-      if (input$growth_preset == "slow") {
-        updateNumericInput(session, "linf", value = 748)
-        updateNumericInput(session, "vbk", value = 0.24)
-        updateNumericInput(session, "t0", value = -0.66)
-        updateNumericInput(session, "nat_mort", value = 0.24)
-      } else if (input$growth_preset == "moderate") {
-        updateNumericInput(session, "linf", value = 683)
-        updateNumericInput(session, "vbk", value = 0.32)
-        updateNumericInput(session, "t0", value = -0.52)
-        updateNumericInput(session, "nat_mort", value = 0.32)
-      } else if (input$growth_preset == "fast") {
-        updateNumericInput(session, "linf", value = 615)
-        updateNumericInput(session, "vbk", value = 0.43)
-        updateNumericInput(session, "t0", value = -0.20)
-        updateNumericInput(session, "nat_mort", value = 0.43)
-      }
-    } else if (input$species == "lmb") {
-      if (input$growth_preset == "slow") {
-        updateNumericInput(session, "linf", value = 638)
-        updateNumericInput(session, "vbk", value = 0.17)
-        updateNumericInput(session, "t0", value = -0.21)
-        updateNumericInput(session, "nat_mort", value = 0.17)
-      } else if (input$growth_preset == "moderate") {
-        updateNumericInput(session, "linf", value = 584)
-        updateNumericInput(session, "vbk", value = 0.22)
-        updateNumericInput(session, "t0", value = 0.00)
-        updateNumericInput(session, "nat_mort", value = 0.22)
-      } else if (input$growth_preset == "fast") {
-        updateNumericInput(session, "linf", value = 540)
-        updateNumericInput(session, "vbk", value = 0.28)
-        updateNumericInput(session, "t0", value = 0.10)
-        updateNumericInput(session, "nat_mort", value = 0.28)
-      }
-    } else if (input$species == "smb") {
-      if (input$growth_preset == "slow") {
-        updateNumericInput(session, "linf", value = 608)
-        updateNumericInput(session, "vbk", value = 0.14)
-        updateNumericInput(session, "t0", value = -0.45)
-        updateNumericInput(session, "nat_mort", value = 0.14)
-      } else if (input$growth_preset == "moderate") {
-        updateNumericInput(session, "linf", value = 525)
-        updateNumericInput(session, "vbk", value = 0.17)
-        updateNumericInput(session, "t0", value = -0.33)
-        updateNumericInput(session, "nat_mort", value = 0.17)
-      } else if (input$growth_preset == "fast") {
-        updateNumericInput(session, "linf", value = 506)
-        updateNumericInput(session, "vbk", value = 0.22)
-        updateNumericInput(session, "t0", value = 0.02)
-        updateNumericInput(session, "nat_mort", value = 0.22)
-      }
-    } else if (input$species == "channel_catfish") {
-      if (input$growth_preset == "slow") {
-        updateNumericInput(session, "linf", value = 797)
-        updateNumericInput(session, "vbk", value = 0.12)
-        updateNumericInput(session, "t0", value = -0.82)
-        updateNumericInput(session, "nat_mort", value = 0.12)
-      } else if (input$growth_preset == "moderate") {
-        updateNumericInput(session, "linf", value = 592)
-        updateNumericInput(session, "vbk", value = 0.17)
-        updateNumericInput(session, "t0", value = -0.62)
-        updateNumericInput(session, "nat_mort", value = 0.17)
-      } else if (input$growth_preset == "fast") {
-        updateNumericInput(session, "linf", value = 470)
-        updateNumericInput(session, "vbk", value = 0.23)
-        updateNumericInput(session, "t0", value = -0.20)
-        updateNumericInput(session, "nat_mort", value = 0.23)
-      }
-    } else if (input$species == "blue_catfish") {
-      if (input$growth_preset == "slow") {
-        updateNumericInput(session, "linf", value = 1396)
-        updateNumericInput(session, "vbk", value = 0.051)
-        updateNumericInput(session, "t0", value = -1.52)
-        updateNumericInput(session, "nat_mort", value = 0.051)
-      } else if (input$growth_preset == "moderate") {
-        updateNumericInput(session, "linf", value = 1300)
-        updateNumericInput(session, "vbk", value = 0.079)
-        updateNumericInput(session, "t0", value = -1.30)
-        updateNumericInput(session, "nat_mort", value = 0.079)
-      } else if (input$growth_preset == "fast") {
-        updateNumericInput(session, "linf", value = 1060)
-        updateNumericInput(session, "vbk", value = 0.095)
-        updateNumericInput(session, "t0", value = -1.01)
-        updateNumericInput(session, "nat_mort", value = 0.095)
-      }
+    gp <- get_growth_preset(input$species, input$growth_preset)
+    if (is.null(gp)) return()
+    for (field in names(gp)) {
+      updateNumericInput(session, field, value = gp[[field]])
     }
   })
   
@@ -488,11 +377,9 @@ server <- function(input, output, session) {
       Amax <- input$amax
       Ymax <- input$amax + 100 + 20
 
-      bin_width   <- 10
-      max_length  <- ceiling(growth_params$Linf * 1.2)
-      length_bins <- seq(0, max_length, by = bin_width)
-      L_bins      <- length(length_bins) - 1
-      bin_midpoints <- (length_bins[-1] + length_bins[-(L_bins + 1)]) / 2
+      bins          <- make_length_bins(growth_params$Linf)
+      length_bins   <- bins$length_bins
+      bin_midpoints <- bins$bin_midpoints
 
       sp_preset <- get_species_preset(input$species)
       fec_exp   <- if (!is.null(sp_preset)) sp_preset$fec_exp else 1.18
@@ -533,55 +420,10 @@ server <- function(input, output, session) {
         progress_fn = function(k, n) incProgress(1/n, detail = paste("Simulation", k, "of", n))
       )
 
-      burnin_years <- sim_out$burnin_years
-      ts_data <- data.frame(
-        Year     = 1:Ymax,
-        YPR_mean = rowMeans(sim_out$all_YPR,  na.rm = TRUE),
-        YPR_sd   = apply(sim_out$all_YPR,  1, sd, na.rm = TRUE),
-        SPR_mean = rowMeans(sim_out$all_SPR,  na.rm = TRUE),
-        SPR_sd   = apply(sim_out$all_SPR,  1, sd, na.rm = TRUE),
-        Prop_mean = rowMeans(sim_out$all_Prop, na.rm = TRUE),
-        Prop_sd   = apply(sim_out$all_Prop, 1, sd, na.rm = TRUE),
-        SSB_mean = rowMeans(sim_out$all_SSB,  na.rm = TRUE),
-        SSB_sd   = apply(sim_out$all_SSB,  1, sd, na.rm = TRUE)
-      )
-      ts_data$burnin_years <- burnin_years
-      ts_data$YPR_lower  <- pmax(0, ts_data$YPR_mean  - 1.96 * ts_data$YPR_sd)
-      ts_data$YPR_upper  <- ts_data$YPR_mean  + 1.96 * ts_data$YPR_sd
-      ts_data$SPR_lower  <- pmax(0, ts_data$SPR_mean  - 1.96 * ts_data$SPR_sd)
-      ts_data$SPR_upper  <- ts_data$SPR_mean  + 1.96 * ts_data$SPR_sd
-      ts_data$Prop_lower <- pmax(0, ts_data$Prop_mean - 1.96 * ts_data$Prop_sd)
-      ts_data$Prop_upper <- pmin(1, ts_data$Prop_mean + 1.96 * ts_data$Prop_sd)
-      ts_data$SSB_lower  <- pmax(0, ts_data$SSB_mean  - 1.96 * ts_data$SSB_sd)
-      ts_data$SSB_upper  <- ts_data$SSB_mean  + 1.96 * ts_data$SSB_sd
-      time_series_data(ts_data)
+      time_series_data(summarize_timeseries(sim_out, Ymax))
 
-      length_data <- data.frame(
-        Length           = bin_midpoints,
-        Weight           = vc$Wt_bins,
-        Abundance_mean   = rowMeans(sim_out$all_Abundance, na.rm = TRUE),
-        Abundance_median = apply(sim_out$all_Abundance, 1, median,   na.rm = TRUE),
-        Abundance_sd     = apply(sim_out$all_Abundance, 1, sd,       na.rm = TRUE),
-        Abundance_q25    = apply(sim_out$all_Abundance, 1, quantile, probs = 0.25, na.rm = TRUE),
-        Abundance_q75    = apply(sim_out$all_Abundance, 1, quantile, probs = 0.75, na.rm = TRUE),
-        VulCapture       = vc$Vulcap_bins,
-        VulHarvest       = vc$Vulharv_bins,
-        VulTrophy        = vc$trophyvul_bins
-      )
-      length_data$Abundance_lower <- pmax(0,
-        length_data$Abundance_mean - 1.96 * length_data$Abundance_sd)
-      length_data$Abundance_upper <- length_data$Abundance_mean + 1.96 * length_data$Abundance_sd
-
-      age_data <- data.frame(
-        Age              = 1:Amax,
-        Abundance_mean   = rowMeans(sim_out$all_AgeAbundance, na.rm = TRUE),
-        Abundance_median = apply(sim_out$all_AgeAbundance, 1, median, na.rm = TRUE),
-        Abundance_sd     = apply(sim_out$all_AgeAbundance, 1, sd,     na.rm = TRUE)
-      )
-      age_data$Abundance_lower <- pmax(0,
-        age_data$Abundance_median - 1.96 * age_data$Abundance_sd)
-      age_data$Abundance_upper <- age_data$Abundance_median + 1.96 * age_data$Abundance_sd
-
+      length_data <- summarize_length_data(sim_out, bin_midpoints, vc)
+      age_data    <- summarize_age_data(sim_out, Amax)
       pop_structure_data(list(length_data = length_data, age_data = age_data))
       sim_results(sim_out$sim_df)
     })
@@ -998,11 +840,9 @@ server <- function(input, output, session) {
       growth_params <- get_growth_params()
       Amax <- input$amax
 
-      bin_width   <- 10
-      max_length  <- ceiling(growth_params$Linf * 1.2)
-      length_bins <- seq(0, max_length, by = bin_width)
-      L_bins      <- length(length_bins) - 1
-      bin_midpoints <- (length_bins[-1] + length_bins[-(L_bins + 1)]) / 2
+      bins          <- make_length_bins(growth_params$Linf)
+      length_bins   <- bins$length_bins
+      bin_midpoints <- bins$bin_midpoints
 
       sp_preset <- get_species_preset(input$species)
       fec_exp   <- if (!is.null(sp_preset)) sp_preset$fec_exp else 1.18
@@ -1027,58 +867,23 @@ server <- function(input, output, session) {
       )
 
       Ymax_yield <- Amax + 20 + 100
-      nsim       <- input$yield_curve_nsim
-      U_values   <- seq(0, 1, by = 0.1)
-      n_points   <- length(U_values)
 
-      curve_results <- data.frame(
-        U               = U_values,
-        YPR_mean        = numeric(n_points), YPR_sd        = numeric(n_points),
-        YPR_n           = integer(n_points),
-        SPR_mean        = numeric(n_points), SPR_sd        = numeric(n_points),
-        SPR_n           = integer(n_points),
-        Prop_mean       = numeric(n_points), Prop_sd       = numeric(n_points),
-        Prop_n          = integer(n_points),
-        Recruit_mean    = numeric(n_points), Recruit_sd    = numeric(n_points),
-        TotalYield_mean = numeric(n_points), TotalYield_sd = numeric(n_points)
+      curve_results <- run_yield_curve(
+        bin_midpoints  = bin_midpoints,    length_bins   = length_bins,
+        Growth_matrix  = gm$Growth_matrix, recruit_dist  = gm$recruit_dist,
+        Vulcap_bins    = vc$Vulcap_bins,   Vulharv_bins  = vc$Vulharv_bins,
+        trophyvul_bins = vc$trophyvul_bins, Fec_bins     = vc$Fec_bins,
+        Wt_bins        = vc$Wt_bins,       S_bins        = vc$S_bins,
+        Amax = Amax, Ymax = Ymax_yield,
+        Ro = input$R0, rec_cv = input$rec_cv,
+        DisMort = input$dismort, nsim = input$yield_curve_nsim,
+        U_values           = seq(0, 1, by = 0.1),
+        enable_ddr         = isTRUE(input$enable_ddr),
+        steepness          = input$steepness,
+        enable_depensation = isTRUE(input$enable_depensation),
+        progress_fn = function(u_idx, n) incProgress(1/n,
+          detail = paste("U =", round(seq(0, 1, by = 0.1)[u_idx], 2)))
       )
-
-      for (u_idx in seq_len(n_points)) {
-        incProgress(1/n_points, detail = paste("U =", round(U_values[u_idx], 2)))
-
-        sim_out <- run_population_simulation(
-          bin_midpoints  = bin_midpoints,    length_bins   = length_bins,
-          Growth_matrix  = gm$Growth_matrix, recruit_dist  = gm$recruit_dist,
-          Vulcap_bins    = vc$Vulcap_bins,   Vulharv_bins  = vc$Vulharv_bins,
-          trophyvul_bins = vc$trophyvul_bins, Fec_bins     = vc$Fec_bins,
-          Wt_bins        = vc$Wt_bins,       S_bins        = vc$S_bins,
-          Amax = Amax, Ymax = Ymax_yield,
-          Ro = input$R0, rec_cv = input$rec_cv,
-          U = U_values[u_idx], DisMort = input$dismort,
-          nsim = nsim,
-          enable_ddr         = isTRUE(input$enable_ddr),
-          steepness          = input$steepness,
-          enable_depensation = isTRUE(input$enable_depensation),
-          collect_full_output = FALSE
-        )
-
-        df               <- sim_out$sim_df
-        total_yield_vals <- df$YPR * df$Recruit
-
-        curve_results$YPR_mean[u_idx]        <- mean(df$YPR,        na.rm = TRUE)
-        curve_results$YPR_sd[u_idx]          <- sd(df$YPR,          na.rm = TRUE)
-        curve_results$YPR_n[u_idx]           <- nsim
-        curve_results$SPR_mean[u_idx]        <- mean(df$SPR,        na.rm = TRUE)
-        curve_results$SPR_sd[u_idx]          <- sd(df$SPR,          na.rm = TRUE)
-        curve_results$SPR_n[u_idx]           <- nsim
-        curve_results$Prop_mean[u_idx]       <- mean(df$Prop,       na.rm = TRUE)
-        curve_results$Prop_sd[u_idx]         <- sd(df$Prop,         na.rm = TRUE)
-        curve_results$Prop_n[u_idx]          <- nsim
-        curve_results$Recruit_mean[u_idx]    <- mean(df$Recruit,    na.rm = TRUE)
-        curve_results$Recruit_sd[u_idx]      <- sd(df$Recruit,      na.rm = TRUE)
-        curve_results$TotalYield_mean[u_idx] <- mean(total_yield_vals, na.rm = TRUE)
-        curve_results$TotalYield_sd[u_idx]   <- sd(total_yield_vals,   na.rm = TRUE)
-      }
       yield_curve_data(curve_results)
     })
   })
@@ -1086,9 +891,9 @@ server <- function(input, output, session) {
   output$msy_plot <- renderPlotly({
     curve_data <- yield_curve_data()
     req(!is.null(curve_data))
-    msy_idx <- which.max(curve_data$TotalYield_mean)
-    msy_value <- curve_data$TotalYield_mean[msy_idx]
-    u_msy <- curve_data$U[msy_idx] * 100
+    msy <- compute_msy(curve_data)
+    msy_value <- msy$total_yield
+    u_msy <- msy$U * 100
     curve_data$TotalYield_lower <- curve_data$TotalYield_mean - 1.96 * curve_data$TotalYield_sd
     curve_data$TotalYield_upper <- curve_data$TotalYield_mean + 1.96 * curve_data$TotalYield_sd
     curve_data$Recruit_lower <- curve_data$Recruit_mean - 1.96 * curve_data$Recruit_sd

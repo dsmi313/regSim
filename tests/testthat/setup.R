@@ -8,5 +8,9 @@ if (!is.null(this_file)) {
 }
 
 source(file.path(pkg_root, "R", "species_presets.R"))
+source(file.path(pkg_root, "R", "growth_presets.R"))
+source(file.path(pkg_root, "R", "length_bins.R"))
 source(file.path(pkg_root, "R", "model_core.R"))
+source(file.path(pkg_root, "R", "summarize.R"))
+source(file.path(pkg_root, "R", "yield_curve.R"))
 source(file.path(pkg_root, "R", "validation_checks.R"))

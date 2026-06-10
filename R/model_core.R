@@ -1,6 +1,23 @@
-# make_growth_matrix: builds the length-bin transition matrix and age-1 recruit
-# size distribution from von Bertalanffy parameters.
-# Returns list(Growth_matrix, recruit_dist).
+#' Build the length-bin growth transition matrix and recruit distribution
+#'
+#' Constructs the probabilistic length-bin transition matrix and the age-1
+#' recruit size distribution from von Bertalanffy growth parameters and a
+#' coefficient of variation in length-at-age.
+#'
+#' @param Linf Asymptotic length (mm), von Bertalanffy \eqn{L_\infty}.
+#' @param vbk Brody growth coefficient, von Bertalanffy \eqn{K}.
+#' @param t0 Theoretical age at length zero, von Bertalanffy \eqn{t_0}.
+#' @param bin_midpoints Numeric vector of length-bin midpoints (mm).
+#' @param length_bins Numeric vector of length-bin edges (mm); one longer than
+#'   \code{bin_midpoints}.
+#' @param growth_cv Coefficient of variation in length-at-age. \code{0} gives a
+#'   deterministic matrix (each bin maps to a single destination bin).
+#'
+#' @return A list with components \code{Growth_matrix} (a row-stochastic
+#'   \code{L x L} matrix) and \code{recruit_dist} (a length-\code{L} probability
+#'   vector summing to 1).
+#' @importFrom stats pnorm
+#' @export
 make_growth_matrix <- function(Linf, vbk, t0, bin_midpoints, length_bins, growth_cv) {
   L_bins   <- length(bin_midpoints)
   bin_width <- length_bins[2] - length_bins[1]
@@ -58,9 +75,35 @@ make_growth_matrix <- function(Linf, vbk, t0, bin_midpoints, length_bins, growth
 }
 
 
-# make_vulnerability_curves: computes all size-based selectivity, fecundity, and
-# natural-mortality arrays that do not depend on exploitation rate U.
-# Returns a named list of per-bin vectors.
+#' Compute size-based selectivity, fecundity, and natural-mortality arrays
+#'
+#' Computes all per-length-bin quantities that do not depend on the exploitation
+#' rate \code{U}: capture and harvest vulnerability, trophy vulnerability,
+#' weight, fecundity, the maturity ogive, and stage-structured natural mortality
+#' and survival. Supports minimum-length, traditional/protective slot, and
+#' maximum-length regulations.
+#'
+#' @param bin_midpoints Numeric vector of length-bin midpoints (mm).
+#' @param Capsize Length at 50\% capture vulnerability (mm).
+#' @param Harvlim Minimum harvest length (mm).
+#' @param mat_size Length at maturity (mm).
+#' @param memorable_size Memorable/trophy length threshold (mm).
+#' @param wl_a,wl_b Weight-length coefficients in \eqn{W = a L^b} (W in kg).
+#' @param nat_mort Adult instantaneous natural mortality \eqn{M}.
+#' @param fec_exp Fecundity-weight exponent.
+#' @param enable_slot Logical; apply a slot limit.
+#' @param slot_type \code{"traditional"} (keep within slot) or
+#'   \code{"protective"} (protect within slot).
+#' @param slot_upper Upper edge of the slot (mm); required when
+#'   \code{enable_slot = TRUE}.
+#' @param enable_max_limit Logical; apply a maximum-length limit.
+#' @param max_harvest_size Maximum harvest length (mm); required when
+#'   \code{enable_max_limit = TRUE}.
+#'
+#' @return A named list of per-bin numeric vectors: \code{Vulcap_bins},
+#'   \code{Vulharv_bins}, \code{trophyvul_bins}, \code{Fec_bins}, \code{Wt_bins},
+#'   \code{M_bins}, \code{S_bins}, \code{maturity_ogive_bins}.
+#' @export
 make_vulnerability_curves <- function(bin_midpoints,
                                       Capsize, Harvlim,
                                       mat_size, memorable_size,
@@ -120,19 +163,41 @@ make_vulnerability_curves <- function(bin_midpoints,
 }
 
 
-# run_population_simulation: age/length-structured stochastic forward simulation.
-# All pre-computed bin arrays are passed in; this function is free of Shiny
-# dependencies and is fully unit-testable.
-#
-# progress_fn: optional function(k, nsim) called each replicate (for Shiny progress bars).
-# collect_full_output: when TRUE returns the per-year, per-sim matrices needed for
-#   time-series and population-structure plots; set FALSE for yield-curve sweeps.
-#
-# Returns a list with:
-#   sim_df          - data.frame: sim, YPR, SPR, Prop, MeanLengthHarvested, Recruit
-#   burnin_years    - integer
-#   (if collect_full_output) all_YPR, all_SPR, all_Prop, all_SSB,
-#                             all_Abundance, all_AgeAbundance
+#' Age/length-structured stochastic population simulation
+#'
+#' Runs the core age- and length-structured forward simulation across
+#' \code{nsim} stochastic replicates. All pre-computed bin arrays are passed in,
+#' so the function is free of Shiny dependencies and fully unit-testable.
+#'
+#' @param bin_midpoints,length_bins Length-bin midpoints and edges (mm).
+#' @param Growth_matrix,recruit_dist Outputs of \code{\link{make_growth_matrix}}.
+#' @param Vulcap_bins,Vulharv_bins,trophyvul_bins,Fec_bins,Wt_bins,S_bins
+#'   Per-bin arrays from \code{\link{make_vulnerability_curves}}.
+#' @param Amax Maximum age class (years).
+#' @param Ymax Number of years to simulate.
+#' @param Ro Unfished recruitment (number of age-1 fish).
+#' @param rec_cv Recruitment coefficient of variation. \code{0} is deterministic.
+#' @param U Exploitation rate (proportion of harvestable fish removed annually).
+#' @param DisMort Discard (release) mortality rate.
+#' @param nsim Number of stochastic replicates.
+#' @param enable_ddr Logical; use Beverton-Holt density-dependent recruitment.
+#' @param steepness Beverton-Holt steepness \eqn{h} (used when
+#'   \code{enable_ddr = TRUE}).
+#' @param enable_depensation Logical; apply depensation below 20\% of unfished
+#'   spawning stock biomass.
+#' @param collect_full_output When \code{TRUE}, also return the per-year,
+#'   per-replicate matrices needed for time-series and population-structure
+#'   plots; set \code{FALSE} for faster yield-curve sweeps.
+#' @param progress_fn Optional \code{function(k, nsim)} called once per replicate
+#'   (e.g. to drive a Shiny progress bar).
+#'
+#' @return A list with \code{sim_df} (data.frame: \code{sim}, \code{YPR},
+#'   \code{SPR}, \code{Prop}, \code{MeanLengthHarvested}, \code{Recruit}) and
+#'   \code{burnin_years}. When \code{collect_full_output = TRUE}, also
+#'   \code{all_YPR}, \code{all_SPR}, \code{all_Prop}, \code{all_SSB},
+#'   \code{all_Abundance}, and \code{all_AgeAbundance}.
+#' @importFrom stats rlnorm
+#' @export
 run_population_simulation <- function(bin_midpoints, length_bins,
                                       Growth_matrix, recruit_dist,
                                       Vulcap_bins, Vulharv_bins, trophyvul_bins,
