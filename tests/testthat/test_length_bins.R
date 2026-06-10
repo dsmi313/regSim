@@ -8,7 +8,11 @@ test_that("make_length_bins returns consistent structure", {
 test_that("bins span 0 to ceiling(1.2 * Linf) in 10mm steps by default", {
   b <- make_length_bins(353)
   expect_equal(b$length_bins[1], 0)
-  expect_equal(max(b$length_bins), ceiling(353 * 1.2))
+  # 353 * 1.2 = 423.6 -> ceiling 424, which is not a multiple of 10, so the
+  # top edge is the last full 10mm step at or below it (420). The grid never
+  # exceeds the ceiling and comes within one bin width of it.
+  expect_lte(max(b$length_bins), ceiling(353 * 1.2))
+  expect_gt(max(b$length_bins), ceiling(353 * 1.2) - 10)
   expect_true(all(abs(diff(b$length_bins) - 10) < 1e-9))
 })
 
