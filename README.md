@@ -130,3 +130,9 @@ chmod +x run.sh
 | `tests/` | `testthat` unit tests, run by GitHub Actions |
 
 For dependency metadata, see `DESCRIPTION`.
+
+## Status
+
+This package is under active development. Model outputs are intended for
+scenario exploration and teaching, not as a substitute for stock-specific
+assessment or formal management advice.
