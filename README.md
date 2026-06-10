@@ -42,7 +42,8 @@ interface for exploring those tradeoffs without writing code.
 - **YPR (Yield Per Recruit)** — average harvest weight per recruit across
   stochastic simulations
 - **SPR (Spawning Potential Ratio)** — fished spawning biomass as a fraction
-  of unfished; values below 0.30 indicate recruitment overfishing risk
+  of unfished. Values below 0.30 are often used as a warning threshold, though
+  appropriate reference points are species- and system-specific.
 - **MSY-type yield curve** — exploitation sweep that identifies the U
   maximising total yield and the corresponding SPR
 
@@ -67,6 +68,35 @@ regSim::run_app()
 That's it — no need to clone the repository or source any files manually. The
 Shiny app and all modeling functions ship inside the package. Dependencies
 (`shiny`, `dplyr`, `tidyr`, `ggplot2`, `plotly`) are installed automatically.
+
+## Scripted use
+
+regSim is a real R package, not just a Shiny app — every modeling function is
+exported, so you can build inputs and run the model directly from scripts:
+
+```r
+library(regSim)
+
+# Length-bin grid spanning 0 to 1.2 * Linf in 10 mm steps
+bins <- make_length_bins(Linf = 450, bin_width = 10)
+
+# von Bertalanffy growth transition matrix + recruit size distribution
+growth <- make_growth_matrix(
+  Linf          = 450,
+  vbk           = 0.30,
+  t0            = -0.5,
+  bin_midpoints = bins$bin_midpoints,
+  length_bins   = bins$length_bins,
+  growth_cv     = 0.10
+)
+
+str(growth)   # $Growth_matrix (row-stochastic) and $recruit_dist (sums to 1)
+```
+
+From there, `make_vulnerability_curves()` turns regulation settings into
+selectivity ogives, `run_population_simulation()` runs the stochastic
+age-structured simulation, and `run_yield_curve()` sweeps exploitation to
+locate the MSY-type peak — all without launching the app.
 
 ## Development
 
@@ -95,8 +125,8 @@ chmod +x run.sh
 | Path | Contents |
 |---|---|
 | `inst/shiny/app.R` | Packaged Shiny app, launched by `regSim::run_app()` |
-| `app.R` | Root development copy (run with `shiny::runApp("app.R")`) |
-| `R/` | Exported modeling functions: growth, vulnerability, simulation, summaries, yield curves |
-| `tests/` | `testthat` unit tests, run automatically by GitHub Actions on every PR |
+| `app.R` | Root development copy, run with `shiny::runApp("app.R")` |
+| `R/` | Exported modeling functions for growth, vulnerability, simulation, summaries, and yield curves |
+| `tests/` | `testthat` unit tests, run by GitHub Actions |
 
 For dependency metadata, see `DESCRIPTION`.
