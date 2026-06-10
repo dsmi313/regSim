@@ -211,6 +211,7 @@ run_population_simulation <- function(bin_midpoints, length_bins,
                                       progress_fn       = NULL) {
   L_bins <- length(bin_midpoints)
 
+  # --- Fishing mortality derived quantities -----------------------------------
   F_bins            <- Vulharv_bins * U
   Release_mort_bins <- (Vulcap_bins - Vulharv_bins) * U * DisMort
   Survival_bins     <- S_bins * (1 - F_bins) * (1 - Release_mort_bins)
@@ -218,6 +219,7 @@ run_population_simulation <- function(bin_midpoints, length_bins,
   sigmaR       <- sqrt(log(rec_cv ^ 2 + 1))
   burnin_years <- min(Ymax, Amax + 20)
 
+  # --- Per-simulation output storage -----------------------------------------
   sim_df <- data.frame(
     sim                = seq_len(nsim),
     YPR                = rep(NA_real_, nsim),
@@ -239,6 +241,7 @@ run_population_simulation <- function(bin_midpoints, length_bins,
   for (k in seq_len(nsim)) {
     if (!is.null(progress_fn)) progress_fn(k, nsim)
 
+    # --- Per-replicate storage ------------------------------------------------
     N       <- matrix(0, Ymax, L_bins)
     age_len <- matrix(0, Amax, L_bins)
     Yield   <- rep(NA_real_, Ymax)
@@ -247,6 +250,7 @@ run_population_simulation <- function(bin_midpoints, length_bins,
     Prop    <- rep(NA_real_, Ymax)
     SSBt    <- rep(NA_real_, Ymax)
 
+    # --- Burn-in: build unfished equilibrium (no harvest) --------------------
     age_len[1, ] <- Ro * recruit_dist
     N[1, ]       <- colSums(age_len)
     SSB_burnin   <- rep(NA_real_, burnin_years)
@@ -265,10 +269,12 @@ run_population_simulation <- function(bin_midpoints, length_bins,
       SSB_burnin[init_year] <- sum(N[init_year, ] * Fec_bins)
     }
 
+    # --- Unfished spawning biomass reference (denominator for SPR) -----------
     burnin_start <- max(1L, burnin_years - 9L)
     SPR_denom    <- mean(SSB_burnin[burnin_start:burnin_years], na.rm = TRUE)
     SSB0         <- SPR_denom
 
+    # --- Stochastic recruitment capacity for the fished period ---------------
     if (isTRUE(enable_ddr)) {
       Rcapacity <- rep(NA_real_, Ymax)
     } else if (rec_cv == 0) {
@@ -277,6 +283,7 @@ run_population_simulation <- function(bin_midpoints, length_bins,
       Rcapacity <- Ro * rlnorm(Ymax, 0, sd = sigmaR)
     }
 
+    # --- Annotate burn-in years (U = 0, no harvest) -------------------------
     for (yr in seq_len(burnin_years)) {
       Yield[yr] <- 0
       SSBt[yr]  <- sum(N[yr, ] * Fec_bins)
@@ -285,6 +292,7 @@ run_population_simulation <- function(bin_midpoints, length_bins,
       Prop[yr]  <- sum(trophyvul_bins * N[yr, ]) / max(1, sum(N[yr, ]))
     }
 
+    # --- Fished simulation years ---------------------------------------------
     start_year <- min(burnin_years + 1L, Ymax)
     for (i in start_year:Ymax) {
       if (isTRUE(enable_ddr)) {
@@ -315,6 +323,7 @@ run_population_simulation <- function(bin_midpoints, length_bins,
       Prop[i]          <- sum(trophyvul_bins * N[i, ]) / max(1, sum(N[i, ]))
     }
 
+    # --- Summarise last 50 fished years into sim_df row ----------------------
     last_50_start <- max(start_year, Ymax - 49L)
     idx           <- last_50_start:Ymax
     sim_df$SPR[k]     <- mean(SPRt[idx],     na.rm = TRUE)
