@@ -1,32 +1,57 @@
 # regSim
-A YPR SPR app used to support management decisions in fisheries
 
-## Running the app
+A YPR / SPR app used to support management decisions in fisheries.
 
-This repo includes a standalone Shiny application in `app.R`.
+`regSim` is an interactive Shiny application for yield-per-recruit (YPR) and
+spawning potential ratio (SPR) analysis in age-structured fish population
+models.
+
+## Install and run (recommended)
+
+Install directly from GitHub as an R package and launch the app:
+
+```r
+install.packages("remotes")
+remotes::install_github("dsmi313/regSim")
+regSim::run_app()
+```
+
+That's it — no need to clone the repository or source any files manually. The
+Shiny app and all modeling functions ship inside the package.
 
 Requirements:
 - R installed
-- R packages: `shiny`, `dplyr`, `tidyr`, `ggplot2`, `plotly`
+- The package pulls in its dependencies automatically: `shiny`, `dplyr`,
+  `tidyr`, `ggplot2`, `plotly`.
 
-For dependency metadata, see `DESCRIPTION`.
+## Development
 
-To install missing R packages first:
+Contributors working from a local clone of the repository can still run the
+app straight from the root `app.R` script (kept as a development backup):
+
+```r
+shiny::runApp("app.R")
+```
+
+To install missing R packages for the script-based workflow:
 
 ```bash
 Rscript install_packages.R
 ```
 
-From the repository root:
+Or use the helper script from the repository root:
 
 ```bash
 chmod +x run.sh
 ./run.sh
 ```
 
-If `Rscript` is not available, install R first and then run:
+## Package layout
 
-```bash
-Rscript -e "shiny::runApp('app.R', host = '0.0.0.0', port = 3838, launch.browser = TRUE)"
-```
+- `inst/shiny/app.R` — the packaged Shiny app launched by `regSim::run_app()`.
+- `app.R` — root development copy of the app (run with `shiny::runApp("app.R")`).
+- `R/` — pure, testable modeling functions (growth, vulnerability,
+  simulation, summaries, yield curves) exported by the package.
+- `tests/` — `testthat` unit tests for the modeling functions.
 
+For dependency metadata, see `DESCRIPTION`.
