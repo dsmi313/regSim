@@ -1,3 +1,16 @@
+#' Look up biological parameter presets for a species
+#'
+#' Returns the default biological and life-history parameters used to populate
+#' the model inputs when a species is selected.
+#'
+#' @param species Species key, one of \code{"white_crappie"},
+#'   \code{"black_crappie"}, \code{"walleye"}, \code{"lmb"}, \code{"smb"},
+#'   \code{"channel_catfish"}, or \code{"blue_catfish"}.
+#'
+#' @return A named list of preset values (weight-length coefficients, growth
+#'   parameters, mortality, fecundity exponent, etc.) plus a human-readable
+#'   \code{label}, or \code{NULL} for an unknown species (e.g. \code{"custom"}).
+#' @export
 get_species_preset <- function(species) {
   presets <- list(
     white_crappie = list(
