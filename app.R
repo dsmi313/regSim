@@ -733,40 +733,62 @@ server <- function(input, output, session) {
     req(time_series_data())
     ts_data <- time_series_data()
     burnin_years_plot <- if("burnin_years" %in% names(ts_data)) ts_data$burnin_years[1] else 20
+    yr_max  <- max(ts_data$Year)
+
+    # Parameter uncertainty envelopes (flat bands over equilibrium portion)
+    unc <- uncertainty_results()
+    unc_ypr  <- if (!is.null(unc)) quantile(unc$YPR,  c(0.025, 0.975), na.rm = TRUE) else NULL
+    unc_spr  <- if (!is.null(unc)) quantile(unc$SPR,  c(0.025, 0.975), na.rm = TRUE) else NULL
+    unc_prop <- if (!is.null(unc)) quantile(unc$Prop, c(0.025, 0.975), na.rm = TRUE) else NULL
+
+    unc_sub  <- if (!is.null(unc)) " | Outer band: parameter uncertainty" else ""
+
     p1 <- ggplot(ts_data, aes(x = Year, y = YPR_mean)) +
       annotate("rect", xmin = 1, xmax = burnin_years_plot, ymin = -Inf, ymax = Inf,
                fill = "gray", alpha = 0.2) +
+      {if (!is.null(unc_ypr))
+        annotate("rect", xmin = burnin_years_plot, xmax = yr_max,
+                 ymin = unc_ypr[1], ymax = unc_ypr[2], fill = "steelblue", alpha = 0.12)
+      } +
       geom_ribbon(aes(ymin = YPR_lower, ymax = YPR_upper),
-                  alpha = 0.2, fill = "steelblue") +
+                  alpha = 0.25, fill = "steelblue") +
       geom_line(color = "steelblue", size = 1) +
       geom_vline(xintercept = burnin_years_plot, linetype = "dotted", color = "gray40", alpha = 0.7) +
-      labs(title = "YPR Over Time (Mean ± 95% Prediction Interval)",
-           subtitle = "Gray shaded area: unfished burn-in period",
+      labs(title = "YPR Over Time",
+           subtitle = paste0("Inner band: recruitment noise", unc_sub),
            x = "", y = "YPR (kg)") +
       theme_minimal()
     p2 <- ggplot(ts_data, aes(x = Year, y = SPR_mean)) +
       annotate("rect", xmin = 1, xmax = burnin_years_plot, ymin = -Inf, ymax = Inf,
                fill = "gray", alpha = 0.2) +
+      {if (!is.null(unc_spr))
+        annotate("rect", xmin = burnin_years_plot, xmax = yr_max,
+                 ymin = unc_spr[1], ymax = unc_spr[2], fill = "darkgreen", alpha = 0.12)
+      } +
       geom_ribbon(aes(ymin = SPR_lower, ymax = SPR_upper),
-                  alpha = 0.2, fill = "darkgreen") +
+                  alpha = 0.25, fill = "darkgreen") +
       geom_line(color = "darkgreen", size = 1) +
       geom_vline(xintercept = burnin_years_plot, linetype = "dotted", color = "gray40", alpha = 0.7) +
       geom_hline(yintercept = 0.40, linetype = "dashed", color = "orange", alpha = 0.7) +
       geom_hline(yintercept = 0.30, linetype = "dashed", color = "red", alpha = 0.7) +
-      labs(title = "SPR Over Time (Mean ± 95% Prediction Interval)",
-           subtitle = "Dashed lines: 40% (sustainable), 30% (overfished) | Gray: unfished burn-in",
+      labs(title = "SPR Over Time",
+           subtitle = paste0("Dashed: 40%/30% thresholds", unc_sub),
            x = "", y = "SPR") +
       theme_minimal()
     memorable_inches <- round(input$memorable_size / 25.4, 1)
     p3 <- ggplot(ts_data, aes(x = Year, y = Prop_mean)) +
       annotate("rect", xmin = 1, xmax = burnin_years_plot, ymin = -Inf, ymax = Inf,
                fill = "gray", alpha = 0.2) +
+      {if (!is.null(unc_prop))
+        annotate("rect", xmin = burnin_years_plot, xmax = yr_max,
+                 ymin = unc_prop[1], ymax = unc_prop[2], fill = "darkorange", alpha = 0.12)
+      } +
       geom_ribbon(aes(ymin = Prop_lower, ymax = Prop_upper),
-                  alpha = 0.2, fill = "darkorange") +
+                  alpha = 0.25, fill = "darkorange") +
       geom_line(color = "darkorange", size = 1) +
       geom_vline(xintercept = burnin_years_plot, linetype = "dotted", color = "gray40", alpha = 0.7) +
       labs(title = paste0("Proportion Memorable (≥", memorable_inches, "\") Over Time"),
-           subtitle = "Mean ± 95% prediction interval | Gray: unfished burn-in",
+           subtitle = paste0("Inner band: recruitment noise", unc_sub),
            x = "", y = "Proportion") +
       theme_minimal()
     burnin_index <- min(burnin_years_plot, nrow(ts_data))
