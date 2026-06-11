@@ -1,0 +1,227 @@
+# scripts/walleye_sim.R
+#
+# Walleye regulation scenario simulations
+#
+# Growth parameters: FishBase median; see also:
+#   Quist, M.C., Guy, C.S., Schultz, R.D., Stephen, J.L. 2003.
+#   Latitudinal comparisons of walleye growth in North America and factors
+#   influencing growth of walleye in Kansas reservoirs.
+#   North American Journal of Fisheries Management 23:677-692.
+#
+#   Hansen, M.J., Bozek, M.A. 1994. Factors affecting the suitability of
+#   von Bertalanffy models for estimating walleye Stizostedion vitreum growth.
+#   North American Journal of Fisheries Management 14:561-572.
+#
+# Exploitation rates span the range reported for Midwest walleye fisheries
+# (Isermann et al. 2003; Quist et al. 2003). TODO: add specific citation for
+# your target system before submission.
+#
+# To combine with other species:
+#   all_sims <- dplyr::bind_rows(crappie_simulations_df,
+#                                walleye_simulations_df,
+#                                lmb_simulations_df)
+
+library(regSim)
+library(progress)
+library(dplyr)
+
+# ── Progress bar ──────────────────────────────────────────────────────────────
+pbar_init <- function(x) {
+  progress_bar$new(
+    format     = "(:spin) [:bar] :percent [Elapsed time: :elapsedfull || You got this long: :eta]",
+    total      = x,
+    complete   = "\U0398",
+    incomplete = "\U03A6",
+    current    = "\U0394",
+    clear      = FALSE,
+    width      = 100
+  )
+}
+
+# ── Species preset ────────────────────────────────────────────────────────────
+# wl_a = 6.63e-6, wl_b = 3.10  (W in kg, L in mm)
+# mat_size = 356 mm (~14 in.), memorable_size = 635 mm (~25 in.)
+# capsize = 330 mm (50% capture vulnerability)
+# rec_cv = 1.1, amax = 15, ymax = 135, fec_exp = 1.18
+sp <- get_species_preset("walleye")
+
+# ── Growth presets ────────────────────────────────────────────────────────────
+# Moderate growth approximates FishBase median for walleye.
+# Slow/fast bracket the range across northern-latitude walleye populations.
+#   Slow:     Linf=748 mm, K=0.24 yr-1, t0=-0.66
+#   Moderate: Linf=683 mm, K=0.32 yr-1, t0=-0.52  (FishBase median)
+#   Fast:     Linf=615 mm, K=0.43 yr-1, t0=-0.20
+growth_slow     <- get_growth_preset("walleye", "slow")
+growth_moderate <- get_growth_preset("walleye", "moderate")
+growth_fast     <- get_growth_preset("walleye", "fast")
+
+# ── Exploitation rates ────────────────────────────────────────────────────────
+# Prior and elevated estimates at low / moderate / high effort.
+# Typical Midwest walleye exploitation: 0.15-0.50 (Quist et al. 2003).
+# TODO: confirm specific U values against your cited walleye literature.
+U_df <- data.frame(
+  U_label    = c("Low-Prior",  "Low-Elevated",
+                 "Mod-Prior",  "Mod-Elevated",
+                 "High-Prior", "High-Elevated"),
+  U          = c(0.15, 0.20, 0.30, 0.40, 0.50, 0.60),
+  U_category = c("Low", "Low", "Moderate", "Moderate", "High", "High"),
+  stringsAsFactors = FALSE
+)
+
+# ── Simulation settings ───────────────────────────────────────────────────────
+Ro   <- 1000L
+nsim <- 10000L
+
+# ── Regulation scenario parameters ───────────────────────────────────────────
+
+# Scenario 1: Minimum length 356 mm (14 in.)
+# Common entry-level minimum in many Midwest walleye fisheries.
+scen1_name        <- "Min. length 356 mm (14 in.)"
+scen1_Harvlim     <- 356
+scen1_enable_slot <- FALSE
+scen1_slot_type   <- "traditional"
+scen1_slot_upper  <- NA_real_
+scen1_DisMort     <- 0.10
+
+# Scenario 2: Minimum length 457 mm (18 in.)
+# Conservative regulation used in trophy-focused or recovering stocks.
+scen2_name        <- "Min. length 457 mm (18 in.)"
+scen2_Harvlim     <- 457
+scen2_enable_slot <- FALSE
+scen2_slot_type   <- "traditional"
+scen2_slot_upper  <- NA_real_
+scen2_DisMort     <- 0.10
+
+# Scenario 3: Protective slot 356–508 mm (14–20 in.)
+# Protects the quality class (14–20") from harvest; fish outside this range
+# (< 14" or trophy > 20") remain harvestable. Parallel in structure to the
+# crappie protective-slot scenarios in crappie_sim.R.
+scen3_name        <- "Protective slot 356-508 mm"
+scen3_Harvlim     <- 356
+scen3_enable_slot <- TRUE
+scen3_slot_type   <- "protective"
+scen3_slot_upper  <- 508
+scen3_DisMort     <- 0.10
+
+# ── Scenario table ────────────────────────────────────────────────────────────
+scen_params <- data.frame(
+  scenario    = c(scen1_name,        scen2_name,        scen3_name),
+  Harvlim     = c(scen1_Harvlim,     scen2_Harvlim,     scen3_Harvlim),
+  enable_slot = c(scen1_enable_slot, scen2_enable_slot, scen3_enable_slot),
+  slot_type   = c(scen1_slot_type,   scen2_slot_type,   scen3_slot_type),
+  slot_upper  = c(scen1_slot_upper,  scen2_slot_upper,  scen3_slot_upper),
+  DisMort     = c(scen1_DisMort,     scen2_DisMort,     scen3_DisMort),
+  stringsAsFactors = FALSE
+)
+
+growth_labels <- c("slow", "moderate", "fast")
+
+# Full crossing: 3 scenarios × 3 growth × 6 U = 54 combinations
+combos <- merge(
+  merge(scen_params,
+        data.frame(growth_preset = growth_labels, stringsAsFactors = FALSE),
+        by = character()),
+  U_df,
+  by = character()
+)
+combos <- combos[order(combos$scenario, combos$growth_preset, combos$U), ]
+rownames(combos) <- NULL
+
+n_combos <- nrow(combos)  # 54
+
+cat("Walleye simulation\n")
+cat("  Combinations :", n_combos, "(3 scenarios x 3 growth x 6 U)\n")
+cat("  Replicates   :", nsim, "per combination\n")
+cat("  Total ticks  :", n_combos * nsim, "\n\n")
+
+# ── Main simulation loop ──────────────────────────────────────────────────────
+pbar <- pbar_init(n_combos * nsim)
+
+results_list <- vector("list", n_combos)
+
+for (i in seq_len(n_combos)) {
+
+  combo <- combos[i, ]
+
+  growth <- switch(combo$growth_preset,
+    slow     = growth_slow,
+    moderate = growth_moderate,
+    fast     = growth_fast
+  )
+
+  # ── Step 1: Length bins ───────────────────────────────────────────────────
+  bins <- make_length_bins(Linf = growth$linf)
+
+  # ── Step 2: Growth matrix + recruit distribution ──────────────────────────
+  gmat <- make_growth_matrix(
+    Linf          = growth$linf,
+    vbk           = growth$vbk,
+    t0            = growth$t0,
+    bin_midpoints = bins$bin_midpoints,
+    length_bins   = bins$length_bins,
+    growth_cv     = 0.10
+  )
+
+  # ── Step 3: Vulnerability and life-history curves ─────────────────────────
+  vc <- make_vulnerability_curves(
+    bin_midpoints  = bins$bin_midpoints,
+    Capsize        = sp$capsize,
+    Harvlim        = combo$Harvlim,
+    mat_size       = sp$mat_size,
+    memorable_size = sp$memorable_size,
+    wl_a           = sp$wl_a,
+    wl_b           = sp$wl_b,
+    nat_mort       = growth$nat_mort,
+    fec_exp        = sp$fec_exp,
+    enable_slot    = combo$enable_slot,
+    slot_type      = combo$slot_type,
+    slot_upper     = if (!is.na(combo$slot_upper)) combo$slot_upper else NULL
+  )
+
+  # ── Step 4: Population simulation ─────────────────────────────────────────
+  sim_out <- run_population_simulation(
+    bin_midpoints       = bins$bin_midpoints,
+    length_bins         = bins$length_bins,
+    Growth_matrix       = gmat$Growth_matrix,
+    recruit_dist        = gmat$recruit_dist,
+    Vulcap_bins         = vc$Vulcap_bins,
+    Vulharv_bins        = vc$Vulharv_bins,
+    trophyvul_bins      = vc$trophyvul_bins,
+    Fec_bins            = vc$Fec_bins,
+    Wt_bins             = vc$Wt_bins,
+    S_bins              = vc$S_bins,
+    Amax                = sp$amax,
+    Ymax                = sp$ymax,
+    Ro                  = Ro,
+    rec_cv              = sp$rec_cv,
+    U                   = combo$U,
+    DisMort             = combo$DisMort,
+    nsim                = nsim,
+    collect_full_output = FALSE,
+    progress_fn         = function(k, n) pbar$tick()
+  )
+
+  # ── Step 5: Tag with metadata ─────────────────────────────────────────────
+  d               <- sim_out$sim_df
+  d$species       <- "walleye"
+  d$scenario      <- combo$scenario
+  d$growth_preset <- combo$growth_preset
+  d$U_label       <- combo$U_label
+  d$U             <- combo$U
+  d$U_category    <- combo$U_category
+  d$Harvlim       <- combo$Harvlim
+  d$DisMort       <- combo$DisMort
+
+  results_list[[i]] <- d
+}
+
+# ── Assemble and save ─────────────────────────────────────────────────────────
+walleye_simulations_df <- bind_rows(results_list)
+
+cat("\nDone.\n")
+cat("  walleye_simulations_df:", nrow(walleye_simulations_df), "rows,",
+    ncol(walleye_simulations_df), "cols\n")
+cat("  Columns:", paste(names(walleye_simulations_df), collapse = ", "), "\n")
+
+saveRDS(walleye_simulations_df, "scripts/walleye_sim_results.rds")
+cat("  Saved -> scripts/walleye_sim_results.rds\n")
