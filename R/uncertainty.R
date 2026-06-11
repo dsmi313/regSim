@@ -68,15 +68,19 @@ sample_mortality_parameters <- function(nat_mort, U, DisMort, cv, n) {
 #' Run the population simulation across sampled parameter sets
 #'
 #' Draws \code{nsim} parameter sets via
-#' \code{\link{sample_mortality_parameters}} and runs one simulation per set
-#' (\code{nsim_inner = 1} per draw). Returns the combined per-draw outcomes
-#' as a data.frame suitable for \code{\link{summarize_uncertainty_results}}.
+#' \code{\link{sample_mortality_parameters}} and runs \code{nsim_inner}
+#' recruitment replicates per set, returning the per-set mean of each metric.
+#' Averaging over a few inner replicates stabilises each parameter set's
+#' estimate so the spread across the returned rows reflects parameter
+#' uncertainty rather than recruitment noise. The returned data.frame is
+#' suitable for \code{\link{summarize_uncertainty_results}} and for plotting
+#' the parameter-uncertainty distribution directly.
 #'
 #' @param nat_mort,U,DisMort Point estimates for natural mortality, exploitation
 #'   rate, and discard mortality.
 #' @param cv Coefficient of variation passed to
 #'   \code{\link{sample_mortality_parameters}}.
-#' @param nsim Number of parameter sets to draw (one simulation per set).
+#' @param nsim Number of parameter sets to draw.
 #' @param bin_midpoints,length_bins Length-bin midpoints and edges (mm).
 #' @param Growth_matrix,recruit_dist Outputs of
 #'   \code{\link{make_growth_matrix}}.
@@ -88,6 +92,9 @@ sample_mortality_parameters <- function(nat_mort, U, DisMort, cv, n) {
 #' @param Amax Maximum age class (years).
 #' @param Ymax Years to simulate.
 #' @param Ro,rec_cv Unfished recruitment and recruitment CV.
+#' @param nsim_inner Number of recruitment replicates averaged per parameter
+#'   set (default 5). Higher values give more stable per-set estimates at a
+#'   proportional compute cost.
 #' @param enable_ddr,steepness,enable_depensation Passed through to
 #'   \code{\link{run_population_simulation}}.
 #' @param progress_fn Optional \code{function(k, n)} for progress reporting.
@@ -103,6 +110,7 @@ run_uncertainty_simulation <- function(nat_mort, U, DisMort, cv, nsim,
                                        trophyvul_bins, Fec_bins, Wt_bins,
                                        M_bins,
                                        Amax, Ymax, Ro, rec_cv,
+                                       nsim_inner         = 5L,
                                        enable_ddr         = FALSE,
                                        steepness          = 0.7,
                                        enable_depensation = FALSE,
@@ -126,19 +134,20 @@ run_uncertainty_simulation <- function(nat_mort, U, DisMort, cv, nsim,
       Amax           = Amax,            Ymax          = Ymax,
       Ro             = Ro,              rec_cv        = rec_cv,
       U              = p$U,             DisMort       = p$DisMort,
-      nsim           = 1,
+      nsim           = nsim_inner,
       enable_ddr         = enable_ddr,
       steepness          = steepness,
       enable_depensation = enable_depensation,
       collect_full_output = FALSE
     )
 
-    df_k       <- sim_k$sim_df
+    # Average the inner recruitment replicates into one stable per-set estimate
+    df_k         <- sim_k$sim_df
     results[[k]] <- data.frame(
-      YPR                 = df_k$YPR,
-      SPR                 = df_k$SPR,
-      Prop                = df_k$Prop,
-      MeanLengthHarvested = df_k$MeanLengthHarvested,
+      YPR                 = mean(df_k$YPR,                 na.rm = TRUE),
+      SPR                 = mean(df_k$SPR,                 na.rm = TRUE),
+      Prop                = mean(df_k$Prop,                na.rm = TRUE),
+      MeanLengthHarvested = mean(df_k$MeanLengthHarvested, na.rm = TRUE),
       nat_mort            = p$nat_mort,
       U                   = p$U,
       DisMort             = p$DisMort

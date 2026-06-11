@@ -147,7 +147,8 @@ ui <- fluidPage(
         "Adds CV-based uncertainty (Low = 10%, Medium = 20%, High = 30%) to",
         "natural mortality, exploitation rate, and discard mortality.",
         "Off leaves all parameters fixed at their input values.",
-        "Gold bands on the summary plots show the 95% parameter uncertainty interval."
+        "When on, the summary plots and statistics show the distribution",
+        "of outcomes across the sampled parameters (median and 95% interval)."
       ))),
 
       actionButton("run_sim", "Run Simulation", class = "btn-primary"),
@@ -461,7 +462,7 @@ server <- function(input, output, session) {
               incProgress(0, detail = paste("Uncertainty sample", k, "of", n))
           }
         )
-        uncertainty_results(summarize_uncertainty_results(unc_raw))
+        uncertainty_results(unc_raw)
       } else {
         uncertainty_results(NULL)
       }
@@ -495,70 +496,70 @@ server <- function(input, output, session) {
     cat(sprintf("  K: %.3f\n", input$vbk))
     cat(sprintf("  t0: %.3f\n", input$t0))
     cat(sprintf("  Number of Simulations: %d\n\n", input$nsim))
-    cat("Results (Mean ± SD):\n")
-    cat(sprintf("  YPR:              %.4f ± %.4f kg\n",
-                mean(results$YPR, na.rm = TRUE),
-                sd(results$YPR, na.rm = TRUE)))
-    cat(sprintf("  SPR:              %.4f ± %.4f\n",
-                mean(results$SPR, na.rm = TRUE),
-                sd(results$SPR, na.rm = TRUE)))
-    mean_length_mm <- mean(results$MeanLengthHarvested, na.rm = TRUE)
-    mean_length_inches <- mean_length_mm / 25.4
-    sd_length_mm <- sd(results$MeanLengthHarvested, na.rm = TRUE)
-    sd_length_inches <- sd_length_mm / 25.4
-    cat(sprintf("  Mean Length Harvested: %.1f\" (%.0f mm) ± %.1f\" (%.0f mm)\n",
-                mean_length_inches, mean_length_mm,
-                sd_length_inches, sd_length_mm))
-    checks <- run_model_checks(results, list(U = input$exploitation, rec_cv = input$rec_cv))
-    if (!checks$pass) {
-      cat("\n")
-      for (w in checks$warnings) cat(paste0("  ⚠️  WARNING: ", w, "\n"))
-    }
-    cat(sprintf("  Prop Memorable:   %.4f ± %.4f\n",
-                mean(results$Prop, na.rm = TRUE),
-                sd(results$Prop, na.rm = TRUE)))
     unc <- uncertainty_results()
-    if (!is.null(unc)) {
-      cat(sprintf("\nParameter Uncertainty (%s, 95%% interval):\n",
+    if (is.null(unc)) {
+      cat("Results (Mean ± SD):\n")
+      cat(sprintf("  YPR:              %.4f ± %.4f kg\n",
+                  mean(results$YPR, na.rm = TRUE),
+                  sd(results$YPR, na.rm = TRUE)))
+      cat(sprintf("  SPR:              %.4f ± %.4f\n",
+                  mean(results$SPR, na.rm = TRUE),
+                  sd(results$SPR, na.rm = TRUE)))
+      mean_length_mm <- mean(results$MeanLengthHarvested, na.rm = TRUE)
+      mean_length_inches <- mean_length_mm / 25.4
+      sd_length_mm <- sd(results$MeanLengthHarvested, na.rm = TRUE)
+      sd_length_inches <- sd_length_mm / 25.4
+      cat(sprintf("  Mean Length Harvested: %.1f\" (%.0f mm) ± %.1f\" (%.0f mm)\n",
+                  mean_length_inches, mean_length_mm,
+                  sd_length_inches, sd_length_mm))
+      checks <- run_model_checks(results, list(U = input$exploitation, rec_cv = input$rec_cv))
+      if (!checks$pass) {
+        cat("\n")
+        for (w in checks$warnings) cat(paste0("  ⚠️  WARNING: ", w, "\n"))
+      }
+      cat(sprintf("  Prop Memorable:   %.4f ± %.4f\n",
+                  mean(results$Prop, na.rm = TRUE),
+                  sd(results$Prop, na.rm = TRUE)))
+    } else {
+      unc_summary <- summarize_uncertainty_results(unc)
+      cat(sprintf("Results with %s parameter uncertainty (median [95%% interval]):\n",
                   input$param_uncertainty))
-      ypr_row  <- unc[unc$metric == "YPR",                 ]
-      spr_row  <- unc[unc$metric == "SPR",                 ]
-      prop_row <- unc[unc$metric == "Prop",                ]
-      mln_row  <- unc[unc$metric == "MeanLengthHarvested", ]
-      cat(sprintf("  YPR:             %.4f [%.4f, %.4f] kg\n",
+      ypr_row  <- unc_summary[unc_summary$metric == "YPR",                 ]
+      spr_row  <- unc_summary[unc_summary$metric == "SPR",                 ]
+      prop_row <- unc_summary[unc_summary$metric == "Prop",                ]
+      mln_row  <- unc_summary[unc_summary$metric == "MeanLengthHarvested", ]
+      cat(sprintf("  YPR:              %.4f [%.4f, %.4f] kg\n",
                   ypr_row$median, ypr_row$lower95, ypr_row$upper95))
-      cat(sprintf("  SPR:             %.4f [%.4f, %.4f]\n",
+      cat(sprintf("  SPR:              %.4f [%.4f, %.4f]\n",
                   spr_row$median, spr_row$lower95, spr_row$upper95))
       mln_vals   <- c(mln_row$median, mln_row$lower95, mln_row$upper95)
       mln_inches <- mln_vals / 25.4
-      cat(sprintf("  Mean Length:     %.1f\" [%.1f\", %.1f\"] (%.0f [%.0f, %.0f] mm)\n",
+      cat(sprintf("  Mean Length Harvested: %.1f\" [%.1f\", %.1f\"] (%.0f [%.0f, %.0f] mm)\n",
                   mln_inches[1], mln_inches[2], mln_inches[3],
                   mln_vals[1],   mln_vals[2],   mln_vals[3]))
-      cat(sprintf("  Prop Memorable:  %.4f [%.4f, %.4f]\n",
+      checks <- run_model_checks(results, list(U = input$exploitation, rec_cv = input$rec_cv))
+      if (!checks$pass) {
+        cat("\n")
+        for (w in checks$warnings) cat(paste0("  ⚠️  WARNING: ", w, "\n"))
+      }
+      cat(sprintf("  Prop Memorable:   %.4f [%.4f, %.4f]\n",
                   prop_row$median, prop_row$lower95, prop_row$upper95))
     }
   })
 
   output$ypr_plot <- renderPlotly({
     req(sim_results())
-    results <- sim_results()
-    unc     <- uncertainty_results()
-    p <- ggplot(results, aes(x = "", y = YPR))
-    if (!is.null(unc)) {
-      r <- unc[unc$metric == "YPR", ]
-      p <- p +
-        annotate("rect", xmin = 0.5, xmax = 1.5,
-                 ymin = r$lower95, ymax = r$upper95,
-                 fill = "gold", alpha = 0.30) +
-        geom_hline(yintercept = r$median, linetype = "dashed",
-                   color = "goldenrod2", size = 0.9)
-    }
-    p <- p +
-      geom_violin(fill = "steelblue", alpha = 0.7, color = "black") +
+    unc        <- uncertainty_results()
+    plot_data  <- if (!is.null(unc)) unc else sim_results()
+    fill_color <- if (!is.null(unc)) "goldenrod2" else "steelblue"
+    sub        <- if (!is.null(unc))
+      paste0("Distribution across parameter uncertainty (", input$param_uncertainty, ")") else NULL
+    p <- ggplot(plot_data, aes(x = "", y = YPR)) +
+      geom_violin(fill = fill_color, alpha = 0.7, color = "black") +
       geom_boxplot(width = 0.1, fill = "white", alpha = 0.5) +
       stat_summary(fun = mean, geom = "point", color = "red", size = 3) +
       labs(title = "Yield Per Recruit Distribution",
-           subtitle = if (!is.null(unc)) "Gold band: 95% parameter uncertainty interval" else NULL,
+           subtitle = sub,
            x = "", y = "YPR (kg)") +
       theme_minimal() +
       theme(axis.text.x = element_blank())
@@ -567,24 +568,17 @@ server <- function(input, output, session) {
 
   output$spr_plot <- renderPlotly({
     req(sim_results())
-    results <- sim_results()
-    unc     <- uncertainty_results()
-    p <- ggplot(results, aes(x = "", y = SPR))
-    if (!is.null(unc)) {
-      r <- unc[unc$metric == "SPR", ]
-      p <- p +
-        annotate("rect", xmin = 0.5, xmax = 1.5,
-                 ymin = r$lower95, ymax = r$upper95,
-                 fill = "gold", alpha = 0.30) +
-        geom_hline(yintercept = r$median, linetype = "dashed",
-                   color = "goldenrod2", size = 0.9)
-    }
-    p <- p +
-      geom_violin(fill = "darkgreen", alpha = 0.7, color = "black") +
+    unc        <- uncertainty_results()
+    plot_data  <- if (!is.null(unc)) unc else sim_results()
+    fill_color <- if (!is.null(unc)) "goldenrod2" else "darkgreen"
+    sub        <- if (!is.null(unc))
+      paste0("Distribution across parameter uncertainty (", input$param_uncertainty, ")") else NULL
+    p <- ggplot(plot_data, aes(x = "", y = SPR)) +
+      geom_violin(fill = fill_color, alpha = 0.7, color = "black") +
       geom_boxplot(width = 0.1, fill = "white", alpha = 0.5) +
       stat_summary(fun = mean, geom = "point", color = "red", size = 3) +
       labs(title = "Spawning Potential Ratio Distribution",
-           subtitle = if (!is.null(unc)) "Gold band: 95% parameter uncertainty interval" else NULL,
+           subtitle = sub,
            x = "", y = "SPR") +
       theme_minimal() +
       theme(axis.text.x = element_blank())
@@ -593,25 +587,18 @@ server <- function(input, output, session) {
 
   output$prop_plot <- renderPlotly({
     req(sim_results())
-    results <- sim_results()
-    unc     <- uncertainty_results()
+    unc        <- uncertainty_results()
+    plot_data  <- if (!is.null(unc)) unc else sim_results()
+    fill_color <- if (!is.null(unc)) "goldenrod2" else "orange"
+    sub        <- if (!is.null(unc))
+      paste0("Distribution across parameter uncertainty (", input$param_uncertainty, ")") else NULL
     memorable_inches <- round(input$memorable_size / 25.4, 1)
-    p <- ggplot(results, aes(x = "", y = Prop))
-    if (!is.null(unc)) {
-      r <- unc[unc$metric == "Prop", ]
-      p <- p +
-        annotate("rect", xmin = 0.5, xmax = 1.5,
-                 ymin = r$lower95, ymax = r$upper95,
-                 fill = "gold", alpha = 0.30) +
-        geom_hline(yintercept = r$median, linetype = "dashed",
-                   color = "goldenrod2", size = 0.9)
-    }
-    p <- p +
-      geom_violin(fill = "orange", alpha = 0.7, color = "black") +
+    p <- ggplot(plot_data, aes(x = "", y = Prop)) +
+      geom_violin(fill = fill_color, alpha = 0.7, color = "black") +
       geom_boxplot(width = 0.1, fill = "white", alpha = 0.5) +
       stat_summary(fun = mean, geom = "point", color = "red", size = 3) +
       labs(title = paste0("Proportion of Memorable-Sized Fish (≥", memorable_inches, " inches)"),
-           subtitle = if (!is.null(unc)) "Gold band: 95% parameter uncertainty interval" else NULL,
+           subtitle = sub,
            x = "", y = "Proportion") +
       theme_minimal() +
       theme(axis.text.x = element_blank())
