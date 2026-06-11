@@ -203,16 +203,26 @@ sample_growth_parameters <- function(Linf, vbk, cv, n) {
 #' @importFrom stats median quantile
 #' @export
 summarize_uncertainty_results <- function(results_df) {
-  metrics <- c("YPR", "SPR", "Prop", "MeanLengthHarvested")
+  metrics <- c("YPR", "SPR", "Prop")
   rows <- lapply(metrics, function(m) {
     x <- results_df[[m]]
     data.frame(
       metric  = m,
-      median  = median(x,              na.rm = TRUE),
-      lower95 = quantile(x, 0.025,     na.rm = TRUE),
-      upper95 = quantile(x, 0.975,     na.rm = TRUE),
+      median  = median(x,          na.rm = TRUE),
+      lower95 = quantile(x, 0.025, na.rm = TRUE),
+      upper95 = quantile(x, 0.975, na.rm = TRUE),
       row.names = NULL
     )
   })
+  # Restrict MeanLengthHarvested to draws where harvest actually occurred;
+  # zero-YPR draws have undefined mean length (no fish were harvested).
+  mln <- results_df$MeanLengthHarvested[results_df$YPR > 0]
+  rows <- c(rows, list(data.frame(
+    metric  = "MeanLengthHarvested",
+    median  = median(mln,          na.rm = TRUE),
+    lower95 = quantile(mln, 0.025, na.rm = TRUE),
+    upper95 = quantile(mln, 0.975, na.rm = TRUE),
+    row.names = NULL
+  )))
   do.call(rbind, rows)
 }
