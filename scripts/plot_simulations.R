@@ -242,6 +242,34 @@ p_violin_spr <- ggplot(violin_df,
     strip.text       = element_text(face = "bold")
   )
 
+# ── Figure 4b: YPR distribution violins at target exploitation rates ────────
+# Same filtering as p_violin_spr — reuses violin_df, growth_filter, target_U.
+# Shows whether the yield payoff of each regulation differs across U levels.
+p_violin_ypr <- ggplot(violin_df,
+                       aes(x = scenario, y = YPR,
+                           fill = scenario, colour = scenario)) +
+  geom_violin(alpha = 0.35, linewidth = 0.3, trim = TRUE) +
+  geom_boxplot(width = 0.08, alpha = 0.80, outlier.shape = NA,
+               colour = "grey20", linewidth = 0.4) +
+  facet_wrap(~ U_facet, ncol = 3) +
+  scale_fill_manual(  values = scen_colors, name = "Regulation") +
+  scale_colour_manual(values = scen_colors, name = "Regulation") +
+  labs(
+    x        = NULL,
+    y        = "Yield per recruit (YPR)",
+    subtitle = paste0("Growth preset: ", growth_filter,
+                      " | Violin = 10,000 replicates | Box = IQR")
+  ) +
+  theme_bw(base_size = 12) +
+  theme(
+    axis.text.x      = element_blank(),
+    axis.ticks.x     = element_blank(),
+    legend.position  = "bottom",
+    legend.direction = "horizontal",
+    strip.background = element_blank(),
+    strip.text       = element_text(face = "bold")
+  )
+
 # ── Figure 5: Mean SPR heat map ─────────────────────────────────────────────
 # Summarized further to scenario × exploitation category × growth.
 # Good as a compact overview figure or supplementary table replacement.
@@ -316,16 +344,18 @@ print(p_spr)
 print(p_ypr)
 print(p_trophy)
 print(p_violin_spr)
+print(p_violin_ypr)
 print(p_heat)
 print(p_tradeoff)
 
 # Uncomment to save (change filename prefix, dimensions, and dpi to taste):
-# ggsave("scripts/fig_spr.png",      p_spr,       width = 8, height = 4, dpi = 300)
-# ggsave("scripts/fig_ypr.png",      p_ypr,       width = 8, height = 4, dpi = 300)
-# ggsave("scripts/fig_trophy.png",   p_trophy,    width = 8, height = 4, dpi = 300)
-# ggsave("scripts/fig_violin.png",   p_violin_spr,width = 8, height = 5, dpi = 300)
-# ggsave("scripts/fig_heat.png",     p_heat,      width = 8, height = 4, dpi = 300)
-# ggsave("scripts/fig_tradeoff.png", p_tradeoff,  width = 6, height = 5, dpi = 300)
+# ggsave("scripts/fig_spr.png",        p_spr,        width = 8, height = 4, dpi = 300)
+# ggsave("scripts/fig_ypr.png",        p_ypr,        width = 8, height = 4, dpi = 300)
+# ggsave("scripts/fig_trophy.png",     p_trophy,     width = 8, height = 4, dpi = 300)
+# ggsave("scripts/fig_violin_spr.png", p_violin_spr, width = 8, height = 5, dpi = 300)
+# ggsave("scripts/fig_violin_ypr.png", p_violin_ypr, width = 8, height = 5, dpi = 300)
+# ggsave("scripts/fig_heat.png",       p_heat,       width = 8, height = 4, dpi = 300)
+# ggsave("scripts/fig_tradeoff.png",   p_tradeoff,   width = 6, height = 5, dpi = 300)
 
-cat("\nPlot objects: p_spr, p_ypr, p_trophy, p_violin_spr, p_heat, p_tradeoff\n")
+cat("\nPlot objects: p_spr, p_ypr, p_trophy, p_violin_spr, p_violin_ypr, p_heat, p_tradeoff\n")
 cat("Summary data: summary_df (", nrow(summary_df), "rows )\n")
