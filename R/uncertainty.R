@@ -180,9 +180,12 @@ sample_growth_parameters <- function(Linf, vbk, cv, n) {
     return(data.frame(Linf = rep(Linf, n), vbk = rep(vbk, n)))
   }
   sigma <- sqrt(log(cv^2 + 1))
+  # Single growth-vigor factor preserves the Beverton-Holt invariant L∞ × K ≈ constant.
+  # phi > 1 → bigger/slower fish; phi < 1 → smaller/faster fish.
+  phi <- rlnorm(n, meanlog = -sigma^2 / 2, sdlog = sigma)  # mean(phi) = 1
   data.frame(
-    Linf = rlnorm(n, meanlog = log(Linf) - sigma^2 / 2, sdlog = sigma),
-    vbk  = rlnorm(n, meanlog = log(vbk)  - sigma^2 / 2, sdlog = sigma)
+    Linf = Linf * phi,
+    vbk  = vbk  / phi
   )
 }
 
