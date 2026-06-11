@@ -138,7 +138,18 @@ ui <- fluidPage(
                    value = 1000, min = 100, max = 10000, step = 100),
       numericInput("ymax", "Years to Simulate:",
                    value = 120, min = 50, max = 200),
-      
+
+      h4("Parameter Uncertainty"),
+      selectInput("param_uncertainty", "Parameter Uncertainty:",
+                  choices = c("Off", "Low", "Medium", "High"),
+                  selected = "Off"),
+      helpText(tags$small(tags$em(
+        "Adds CV-based uncertainty (Low = 10%, Medium = 20%, High = 30%) to",
+        "natural mortality, exploitation rate, and discard mortality.",
+        "Off leaves all parameters fixed at their input values.",
+        "Gold bands on the summary plots show the 95% parameter uncertainty interval."
+      ))),
+
       actionButton("run_sim", "Run Simulation", class = "btn-primary"),
       br(),
       br(),
@@ -318,8 +329,9 @@ server <- function(input, output, session) {
   pop_structure_data <- reactiveVal(NULL)
   saved_scenarios <- reactiveVal(data.frame())
   detailed_results <- reactiveVal(data.frame())
-  yield_curve_data <- reactiveVal(NULL)
-  
+  yield_curve_data    <- reactiveVal(NULL)
+  uncertainty_results <- reactiveVal(NULL)
+
   # Species parameter presets
   observeEvent(input$species, {
     preset <- get_species_preset(input$species)
@@ -426,6 +438,33 @@ server <- function(input, output, session) {
       age_data    <- summarize_age_data(sim_out, Amax)
       pop_structure_data(list(length_data = length_data, age_data = age_data))
       sim_results(sim_out$sim_df)
+
+      uncertainty_cv <- get_uncertainty_cv(input$param_uncertainty)
+      if (uncertainty_cv > 0) {
+        incProgress(0, message = "Running parameter uncertainty...", detail = "Starting...")
+        unc_raw <- run_uncertainty_simulation(
+          nat_mort = input$nat_mort, U = input$exploitation,
+          DisMort  = input$dismort,  cv = uncertainty_cv,
+          nsim     = input$nsim,
+          bin_midpoints  = bin_midpoints,    length_bins   = length_bins,
+          Growth_matrix  = gm$Growth_matrix, recruit_dist  = gm$recruit_dist,
+          Vulcap_bins    = vc$Vulcap_bins,   Vulharv_bins  = vc$Vulharv_bins,
+          trophyvul_bins = vc$trophyvul_bins, Fec_bins     = vc$Fec_bins,
+          Wt_bins        = vc$Wt_bins,       M_bins        = vc$M_bins,
+          Amax = Amax, Ymax = Ymax,
+          Ro = input$R0, rec_cv = input$rec_cv,
+          enable_ddr         = isTRUE(input$enable_ddr),
+          steepness          = input$steepness,
+          enable_depensation = isTRUE(input$enable_depensation),
+          progress_fn = function(k, n) {
+            if (k %% max(1L, n %/% 20L) == 0)
+              incProgress(0, detail = paste("Uncertainty sample", k, "of", n))
+          }
+        )
+        uncertainty_results(summarize_uncertainty_results(unc_raw))
+      } else {
+        uncertainty_results(NULL)
+      }
     })
   })
 
@@ -478,16 +517,48 @@ server <- function(input, output, session) {
     cat(sprintf("  Prop Memorable:   %.4f ± %.4f\n",
                 mean(results$Prop, na.rm = TRUE),
                 sd(results$Prop, na.rm = TRUE)))
+    unc <- uncertainty_results()
+    if (!is.null(unc)) {
+      cat(sprintf("\nParameter Uncertainty (%s, 95%% interval):\n",
+                  input$param_uncertainty))
+      ypr_row  <- unc[unc$metric == "YPR",                 ]
+      spr_row  <- unc[unc$metric == "SPR",                 ]
+      prop_row <- unc[unc$metric == "Prop",                ]
+      mln_row  <- unc[unc$metric == "MeanLengthHarvested", ]
+      cat(sprintf("  YPR:             %.4f [%.4f, %.4f] kg\n",
+                  ypr_row$median, ypr_row$lower95, ypr_row$upper95))
+      cat(sprintf("  SPR:             %.4f [%.4f, %.4f]\n",
+                  spr_row$median, spr_row$lower95, spr_row$upper95))
+      mln_vals   <- c(mln_row$median, mln_row$lower95, mln_row$upper95)
+      mln_inches <- mln_vals / 25.4
+      cat(sprintf("  Mean Length:     %.1f\" [%.1f\", %.1f\"] (%.0f [%.0f, %.0f] mm)\n",
+                  mln_inches[1], mln_inches[2], mln_inches[3],
+                  mln_vals[1],   mln_vals[2],   mln_vals[3]))
+      cat(sprintf("  Prop Memorable:  %.4f [%.4f, %.4f]\n",
+                  prop_row$median, prop_row$lower95, prop_row$upper95))
+    }
   })
 
   output$ypr_plot <- renderPlotly({
     req(sim_results())
     results <- sim_results()
-    p <- ggplot(results, aes(x = "", y = YPR)) +
+    unc     <- uncertainty_results()
+    p <- ggplot(results, aes(x = "", y = YPR))
+    if (!is.null(unc)) {
+      r <- unc[unc$metric == "YPR", ]
+      p <- p +
+        annotate("rect", xmin = 0.5, xmax = 1.5,
+                 ymin = r$lower95, ymax = r$upper95,
+                 fill = "gold", alpha = 0.30) +
+        geom_hline(yintercept = r$median, linetype = "dashed",
+                   color = "goldenrod2", size = 0.9)
+    }
+    p <- p +
       geom_violin(fill = "steelblue", alpha = 0.7, color = "black") +
       geom_boxplot(width = 0.1, fill = "white", alpha = 0.5) +
       stat_summary(fun = mean, geom = "point", color = "red", size = 3) +
       labs(title = "Yield Per Recruit Distribution",
+           subtitle = if (!is.null(unc)) "Gold band: 95% parameter uncertainty interval" else NULL,
            x = "", y = "YPR (kg)") +
       theme_minimal() +
       theme(axis.text.x = element_blank())
@@ -497,11 +568,23 @@ server <- function(input, output, session) {
   output$spr_plot <- renderPlotly({
     req(sim_results())
     results <- sim_results()
-    p <- ggplot(results, aes(x = "", y = SPR)) +
+    unc     <- uncertainty_results()
+    p <- ggplot(results, aes(x = "", y = SPR))
+    if (!is.null(unc)) {
+      r <- unc[unc$metric == "SPR", ]
+      p <- p +
+        annotate("rect", xmin = 0.5, xmax = 1.5,
+                 ymin = r$lower95, ymax = r$upper95,
+                 fill = "gold", alpha = 0.30) +
+        geom_hline(yintercept = r$median, linetype = "dashed",
+                   color = "goldenrod2", size = 0.9)
+    }
+    p <- p +
       geom_violin(fill = "darkgreen", alpha = 0.7, color = "black") +
       geom_boxplot(width = 0.1, fill = "white", alpha = 0.5) +
       stat_summary(fun = mean, geom = "point", color = "red", size = 3) +
       labs(title = "Spawning Potential Ratio Distribution",
+           subtitle = if (!is.null(unc)) "Gold band: 95% parameter uncertainty interval" else NULL,
            x = "", y = "SPR") +
       theme_minimal() +
       theme(axis.text.x = element_blank())
@@ -511,12 +594,24 @@ server <- function(input, output, session) {
   output$prop_plot <- renderPlotly({
     req(sim_results())
     results <- sim_results()
+    unc     <- uncertainty_results()
     memorable_inches <- round(input$memorable_size / 25.4, 1)
-    p <- ggplot(results, aes(x = "", y = Prop)) +
+    p <- ggplot(results, aes(x = "", y = Prop))
+    if (!is.null(unc)) {
+      r <- unc[unc$metric == "Prop", ]
+      p <- p +
+        annotate("rect", xmin = 0.5, xmax = 1.5,
+                 ymin = r$lower95, ymax = r$upper95,
+                 fill = "gold", alpha = 0.30) +
+        geom_hline(yintercept = r$median, linetype = "dashed",
+                   color = "goldenrod2", size = 0.9)
+    }
+    p <- p +
       geom_violin(fill = "orange", alpha = 0.7, color = "black") +
       geom_boxplot(width = 0.1, fill = "white", alpha = 0.5) +
       stat_summary(fun = mean, geom = "point", color = "red", size = 3) +
       labs(title = paste0("Proportion of Memorable-Sized Fish (≥", memorable_inches, " inches)"),
+           subtitle = if (!is.null(unc)) "Gold band: 95% parameter uncertainty interval" else NULL,
            x = "", y = "Proportion") +
       theme_minimal() +
       theme(axis.text.x = element_blank())
