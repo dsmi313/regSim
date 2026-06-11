@@ -794,15 +794,15 @@ server <- function(input, output, session) {
       p_m <- ggplot(unc, aes(x = nat_mort)) +
         geom_histogram(fill = "tomato3", alpha = 0.7, bins = 30, color = "white") +
         geom_vline(xintercept = input$nat_mort, linetype = "dashed", color = "black", size = 0.8) +
-        labs(title = "M", x = "Natural Mortality", y = "") + theme_minimal()
+        labs(x = "Natural Mortality", y = "") + theme_minimal()
       p_u <- ggplot(unc, aes(x = U)) +
         geom_histogram(fill = "steelblue", alpha = 0.7, bins = 30, color = "white") +
         geom_vline(xintercept = input$exploitation, linetype = "dashed", color = "black", size = 0.8) +
-        labs(title = "U", x = "Exploitation Rate", y = "") + theme_minimal()
+        labs(x = "Exploitation Rate", y = "") + theme_minimal()
       p_dm <- ggplot(unc, aes(x = DisMort)) +
         geom_histogram(fill = "darkorchid", alpha = 0.7, bins = 30, color = "white") +
         geom_vline(xintercept = input$dismort, linetype = "dashed", color = "black", size = 0.8) +
-        labs(title = "Discard Mort.", x = "Discard Mortality", y = "") + theme_minimal()
+        labs(x = "Discard Mortality", y = "") + theme_minimal()
       plots <- c(plots, list(ggplotly(p_m), ggplotly(p_u), ggplotly(p_dm)))
     }
 
@@ -810,11 +810,11 @@ server <- function(input, output, session) {
       p_linf <- ggplot(unc, aes(x = Linf)) +
         geom_histogram(fill = "seagreen", alpha = 0.7, bins = 30, color = "white") +
         geom_vline(xintercept = input$linf, linetype = "dashed", color = "black", size = 0.8) +
-        labs(title = "L∞", x = "L∞ (mm)", y = "") + theme_minimal()
+        labs(x = "L∞ (mm)", y = "") + theme_minimal()
       p_k <- ggplot(unc, aes(x = vbk)) +
         geom_histogram(fill = "goldenrod3", alpha = 0.7, bins = 30, color = "white") +
         geom_vline(xintercept = input$vbk, linetype = "dashed", color = "black", size = 0.8) +
-        labs(title = "K", x = "K", y = "") + theme_minimal()
+        labs(x = "K", y = "") + theme_minimal()
       plots <- c(plots, list(ggplotly(p_linf), ggplotly(p_k)))
     }
 
