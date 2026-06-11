@@ -330,6 +330,7 @@ server <- function(input, output, session) {
   detailed_results <- reactiveVal(data.frame())
   yield_curve_data    <- reactiveVal(NULL)
   uncertainty_results <- reactiveVal(NULL)
+  param_ts_data       <- reactiveVal(NULL)
 
   # Species parameter presets
   observeEvent(input$species, {
@@ -431,6 +432,7 @@ server <- function(input, output, session) {
         progress_fn = function(k, n) incProgress(1/n, detail = paste("Simulation", k, "of", n))
       )
 
+      burnin_years <- sim_out$burnin_years
       time_series_data(summarize_timeseries(sim_out, Ymax))
 
       length_data <- summarize_length_data(sim_out, bin_midpoints, vc)
@@ -461,8 +463,38 @@ server <- function(input, output, session) {
           }
         )
         uncertainty_results(unc_raw)
+
+        # Generate year-by-year parameter trajectories for time series display.
+        # CI band is the same every year (same distribution); example trajectory
+        # draws one fresh sample per year to show realistic year-to-year wobble.
+        ci_draws <- sample_mortality_parameters(
+          input$nat_mort, input$exploitation, input$dismort,
+          uncertainty_cv, max(500L, input$nsim)
+        )
+        ex_yr <- sample_mortality_parameters(
+          input$nat_mort, input$exploitation, input$dismort,
+          uncertainty_cv, Ymax
+        )
+        # Before burn-in: no harvest (U = 0, DisMort = 0); M present throughout
+        pts <- data.frame(
+          Year     = seq_len(Ymax),
+          U_nom    = c(rep(0, burnin_years), rep(input$exploitation,  Ymax - burnin_years)),
+          U_lower  = c(rep(0, burnin_years), rep(quantile(ci_draws$U,        0.025), Ymax - burnin_years)),
+          U_upper  = c(rep(0, burnin_years), rep(quantile(ci_draws$U,        0.975), Ymax - burnin_years)),
+          U_ex     = c(rep(0, burnin_years), ex_yr$U[(burnin_years + 1):Ymax]),
+          M_nom    = input$nat_mort,
+          M_lower  = quantile(ci_draws$nat_mort, 0.025),
+          M_upper  = quantile(ci_draws$nat_mort, 0.975),
+          M_ex     = ex_yr$nat_mort,
+          Dm_nom   = c(rep(0, burnin_years), rep(input$dismort,  Ymax - burnin_years)),
+          Dm_lower = c(rep(0, burnin_years), rep(quantile(ci_draws$DisMort,  0.025), Ymax - burnin_years)),
+          Dm_upper = c(rep(0, burnin_years), rep(quantile(ci_draws$DisMort,  0.975), Ymax - burnin_years)),
+          Dm_ex    = c(rep(0, burnin_years), ex_yr$DisMort[(burnin_years + 1):Ymax])
+        )
+        param_ts_data(pts)
       } else {
         uncertainty_results(NULL)
+        param_ts_data(NULL)
       }
     })
   })
@@ -549,11 +581,10 @@ server <- function(input, output, session) {
     req(sim_results())
     unc        <- uncertainty_results()
     plot_data  <- if (!is.null(unc)) unc else sim_results()
-    fill_color <- if (!is.null(unc)) "goldenrod2" else "steelblue"
     sub        <- if (!is.null(unc))
       paste0("Distribution across parameter uncertainty (", input$param_uncertainty, ")") else NULL
     p <- ggplot(plot_data, aes(x = "", y = YPR)) +
-      geom_violin(fill = fill_color, alpha = 0.7, color = "black") +
+      geom_violin(fill = "steelblue", alpha = 0.7, color = "black") +
       geom_boxplot(width = 0.1, fill = "white", alpha = 0.5) +
       stat_summary(fun = mean, geom = "point", color = "red", size = 3) +
       labs(title = "Yield Per Recruit Distribution",
@@ -568,11 +599,10 @@ server <- function(input, output, session) {
     req(sim_results())
     unc        <- uncertainty_results()
     plot_data  <- if (!is.null(unc)) unc else sim_results()
-    fill_color <- if (!is.null(unc)) "goldenrod2" else "darkgreen"
     sub        <- if (!is.null(unc))
       paste0("Distribution across parameter uncertainty (", input$param_uncertainty, ")") else NULL
     p <- ggplot(plot_data, aes(x = "", y = SPR)) +
-      geom_violin(fill = fill_color, alpha = 0.7, color = "black") +
+      geom_violin(fill = "darkgreen", alpha = 0.7, color = "black") +
       geom_boxplot(width = 0.1, fill = "white", alpha = 0.5) +
       stat_summary(fun = mean, geom = "point", color = "red", size = 3) +
       labs(title = "Spawning Potential Ratio Distribution",
@@ -587,12 +617,11 @@ server <- function(input, output, session) {
     req(sim_results())
     unc        <- uncertainty_results()
     plot_data  <- if (!is.null(unc)) unc else sim_results()
-    fill_color <- if (!is.null(unc)) "goldenrod2" else "orange"
     sub        <- if (!is.null(unc))
       paste0("Distribution across parameter uncertainty (", input$param_uncertainty, ")") else NULL
     memorable_inches <- round(input$memorable_size / 25.4, 1)
     p <- ggplot(plot_data, aes(x = "", y = Prop)) +
-      geom_violin(fill = fill_color, alpha = 0.7, color = "black") +
+      geom_violin(fill = "orange", alpha = 0.7, color = "black") +
       geom_boxplot(width = 0.1, fill = "white", alpha = 0.5) +
       stat_summary(fun = mean, geom = "point", color = "red", size = 3) +
       labs(title = paste0("Proportion of Memorable-Sized Fish (≥", memorable_inches, " inches)"),
@@ -658,21 +687,60 @@ server <- function(input, output, session) {
            subtitle = "Dashed red line: 20% SSB₀ (depensation threshold) | Gray: unfished burn-in",
            x = "Year", y = "SSB") +
       theme_minimal()
-    subplot(
-      ggplotly(p1),
-      ggplotly(p2),
-      ggplotly(p3),
-      ggplotly(p4),
-      nrows = 4,
-      shareX = TRUE,
-      titleY = TRUE
-    ) %>%
-      layout(title = list(
-        text = paste0("Population Metrics Over Time<br>",
-                      "<sup>Mean across ", input$nsim, " simulations with 95% prediction intervals</sup>"),
-        x = 0.5,
-        xanchor = "center"
-      ))
+    pts <- param_ts_data()
+    if (!is.null(pts)) {
+      p5 <- ggplot(pts, aes(x = Year)) +
+        annotate("rect", xmin = 1, xmax = burnin_years_plot, ymin = -Inf, ymax = Inf,
+                 fill = "gray", alpha = 0.2) +
+        geom_ribbon(aes(ymin = U_lower, ymax = U_upper), fill = "steelblue", alpha = 0.2) +
+        geom_line(aes(y = U_ex),  color = "steelblue", size = 0.6, alpha = 0.7) +
+        geom_line(aes(y = U_nom), color = "steelblue", size = 1, linetype = "dashed") +
+        geom_vline(xintercept = burnin_years_plot, linetype = "dotted", color = "gray40", alpha = 0.7) +
+        labs(title = "Exploitation Rate (U) — example trajectory ± 95% uncertainty",
+             x = "", y = "U") +
+        theme_minimal()
+      p6 <- ggplot(pts, aes(x = Year)) +
+        annotate("rect", xmin = 1, xmax = burnin_years_plot, ymin = -Inf, ymax = Inf,
+                 fill = "gray", alpha = 0.2) +
+        geom_ribbon(aes(ymin = M_lower, ymax = M_upper), fill = "tomato3", alpha = 0.2) +
+        geom_line(aes(y = M_ex),  color = "tomato3", size = 0.6, alpha = 0.7) +
+        geom_line(aes(y = M_nom), color = "tomato3", size = 1, linetype = "dashed") +
+        geom_vline(xintercept = burnin_years_plot, linetype = "dotted", color = "gray40", alpha = 0.7) +
+        labs(title = "Natural Mortality (M) — example trajectory ± 95% uncertainty",
+             x = "", y = "M") +
+        theme_minimal()
+      p7 <- ggplot(pts, aes(x = Year)) +
+        annotate("rect", xmin = 1, xmax = burnin_years_plot, ymin = -Inf, ymax = Inf,
+                 fill = "gray", alpha = 0.2) +
+        geom_ribbon(aes(ymin = Dm_lower, ymax = Dm_upper), fill = "darkorchid", alpha = 0.2) +
+        geom_line(aes(y = Dm_ex),  color = "darkorchid", size = 0.6, alpha = 0.7) +
+        geom_line(aes(y = Dm_nom), color = "darkorchid", size = 1, linetype = "dashed") +
+        geom_vline(xintercept = burnin_years_plot, linetype = "dotted", color = "gray40", alpha = 0.7) +
+        labs(title = "Discard Mortality — example trajectory ± 95% uncertainty",
+             x = "Year", y = "Discard mort.") +
+        theme_minimal()
+      subplot(
+        ggplotly(p1), ggplotly(p2), ggplotly(p3), ggplotly(p4),
+        ggplotly(p5), ggplotly(p6), ggplotly(p7),
+        nrows = 7, shareX = TRUE, titleY = TRUE
+      ) %>%
+        layout(title = list(
+          text = paste0("Population Metrics Over Time<br>",
+                        "<sup>Mean across ", input$nsim, " simulations | ",
+                        input$param_uncertainty, " parameter uncertainty shown</sup>"),
+          x = 0.5, xanchor = "center"
+        ))
+    } else {
+      subplot(
+        ggplotly(p1), ggplotly(p2), ggplotly(p3), ggplotly(p4),
+        nrows = 4, shareX = TRUE, titleY = TRUE
+      ) %>%
+        layout(title = list(
+          text = paste0("Population Metrics Over Time<br>",
+                        "<sup>Mean across ", input$nsim, " simulations with 95% prediction intervals</sup>"),
+          x = 0.5, xanchor = "center"
+        ))
+    }
   })
 
   output$pop_structure <- renderPlotly({
