@@ -193,7 +193,7 @@ ui <- fluidPage(
         
         tabPanel("Time Series",
                  br(),
-                 plotlyOutput("timeseries_plot", height = "600px")
+                 uiOutput("timeseries_ui")
         ),
         
         tabPanel("Population Structure",
@@ -716,6 +716,16 @@ server <- function(input, output, session) {
     ggplotly(p)
   })
 
+  output$timeseries_ui <- renderUI({
+    n <- 4
+    pts <- param_ts_data()
+    if (!is.null(pts)) {
+      if ("U_nom"    %in% names(pts)) n <- n + 3
+      if ("Linf_nom" %in% names(pts)) n <- n + 2
+    }
+    plotlyOutput("timeseries_plot", height = paste0(n * 170, "px"))
+  })
+
   output$timeseries_plot <- renderPlotly({
     req(time_series_data())
     ts_data <- time_series_data()
@@ -834,11 +844,15 @@ server <- function(input, output, session) {
 
     do.call(subplot, c(all_plots,
                        list(nrows = length(all_plots), shareX = TRUE, titleY = TRUE))) %>%
-      layout(title = list(
-        text = paste0("Population Metrics Over Time<br>",
-                      "<sup>Mean across ", input$nsim, " simulations", title_sub, "</sup>"),
-        x = 0.5, xanchor = "center"
-      ))
+      layout(
+        title  = list(
+          text    = paste0("Population Metrics Over Time<br>",
+                           "<sup>Mean across ", input$nsim, " simulations", title_sub, "</sup>"),
+          x       = 0.5,
+          xanchor = "center"
+        ),
+        margin = list(l = 90, r = 30, t = 80, b = 60)
+      )
   })
 
   output$pop_structure <- renderPlotly({
