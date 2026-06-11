@@ -158,6 +158,35 @@ run_uncertainty_simulation <- function(nat_mort, U, DisMort, cv, nsim,
 }
 
 
+#' Sample growth parameters with CV-based uncertainty
+#'
+#' Draws \code{n} parameter sets by adding CV-based lognormal noise around the
+#' von Bertalanffy point estimates. Both \code{Linf} and \code{vbk} are sampled
+#' from mean-preserving lognormal distributions (ensuring positive values).
+#' \code{t0} is treated as fixed because it shifts the age-at-zero intercept
+#' and has little effect on growth trajectory compared to Linf and K.
+#'
+#' @param Linf L-infinity point estimate (positive numeric, mm).
+#' @param vbk von Bertalanffy K point estimate (positive numeric, yr\eqn{^{-1}}).
+#' @param cv Coefficient of variation (non-negative numeric). When \code{0},
+#'   all columns equal the point estimates exactly.
+#' @param n Number of parameter sets to draw.
+#'
+#' @return A data.frame with \code{n} rows and columns \code{Linf}, \code{vbk}.
+#' @importFrom stats rlnorm
+#' @export
+sample_growth_parameters <- function(Linf, vbk, cv, n) {
+  if (cv <= 0) {
+    return(data.frame(Linf = rep(Linf, n), vbk = rep(vbk, n)))
+  }
+  sigma <- sqrt(log(cv^2 + 1))
+  data.frame(
+    Linf = rlnorm(n, meanlog = log(Linf) - sigma^2 / 2, sdlog = sigma),
+    vbk  = rlnorm(n, meanlog = log(vbk)  - sigma^2 / 2, sdlog = sigma)
+  )
+}
+
+
 #' Summarise uncertainty simulation results
 #'
 #' Computes the median, 2.5th, and 97.5th percentiles for each key metric
