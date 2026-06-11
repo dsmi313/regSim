@@ -203,7 +203,7 @@ for (i in seq_len(n_combos)) {
     DisMort             = combo$DisMort,
     nsim                = nsim,
     collect_full_output = FALSE,
-    progress_fn         = function(k, n) pbar$tick()
+    progress_fn         = function(k, n) suppressWarnings(pbar$tick())
   )
 
   # ── Step 5: Tag each replicate row with scenario metadata ─────────────────
