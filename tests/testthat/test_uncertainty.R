@@ -5,6 +5,12 @@ test_that("get_uncertainty_cv maps all levels correctly", {
   expect_equal(get_uncertainty_cv("High"),   0.30)
 })
 
+test_that("get_uncertainty_cv throws an error for invalid level", {
+  expect_error(get_uncertainty_cv("Bad"))
+  expect_error(get_uncertainty_cv("MEDIUM"))
+  expect_error(get_uncertainty_cv(""))
+})
+
 test_that("sample_mortality_parameters with cv=0 returns exact point estimates", {
   df <- sample_mortality_parameters(
     nat_mort = 0.35, U = 0.34, DisMort = 0.09, cv = 0, n = 200

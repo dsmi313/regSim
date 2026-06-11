@@ -47,6 +47,21 @@ interface for exploring those tradeoffs without writing code.
 - **MSY-type yield curve** — exploitation sweep that identifies the U
   maximising total yield and the corresponding SPR
 
+## Parameter uncertainty
+
+regSim runs deterministic scenarios by default. Setting **Parameter Uncertainty**
+to Low, Medium, or High adds CV-based variation (10 / 20 / 30 %) around natural
+mortality, exploitation rate, and release/discard mortality. Each simulation draw
+uses an independently sampled parameter set; the violin plots and summary
+statistics then reflect the distribution of outcomes across those samples.
+
+This is a sensitivity and robustness layer, not a formal Bayesian stock assessment.
+
+**Growth CV is different.** The *Growth CV* slider controls biological variation in
+length-at-age within the population — how smooth or modal the length-frequency
+distribution appears. Parameter uncertainty applies to the population-level inputs
+(M, U, discard mortality), not to individual growth trajectories.
+
 The underlying model is a stochastic, age-structured, length-bin simulation
 with von Bertalanffy growth, Beverton-Holt stock-recruit, optional
 density-dependent recruitment, and optional depensation (Allee effects).
