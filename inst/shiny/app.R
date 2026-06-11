@@ -137,16 +137,23 @@ ui <- fluidPage(
       numericInput("ymax", "Years to Simulate:",
                    value = 120, min = 50, max = 200),
 
-      h4("Parameter Uncertainty"),
-      selectInput("param_uncertainty", "Parameter Uncertainty:",
+      h4("Uncertainty"),
+      selectInput("mort_uncertainty", "Mortality Uncertainty (M, U, Discard):",
                   choices = c("Off", "Low", "Medium", "High"),
                   selected = "Off"),
       helpText(tags$small(tags$em(
-        "Adds CV-based uncertainty (Low = 10%, Medium = 20%, High = 30%) to",
-        "natural mortality, exploitation rate, and discard mortality.",
-        "Off leaves all parameters fixed at their input values.",
-        "When on, the summary plots and statistics show the distribution",
-        "of outcomes across the sampled parameters (median and 95% interval)."
+        "Adds CV-based variation (Low = 10%, Medium = 20%, High = 30%) to",
+        "natural mortality (M), exploitation rate (U), and discard mortality.",
+        "Use this when uncertain about the true mortality rates for this stock."
+      ))),
+      selectInput("growth_uncertainty", "Growth Uncertainty (L∞, K):",
+                  choices = c("Off", "Low", "Medium", "High"),
+                  selected = "Off"),
+      helpText(tags$small(tags$em(
+        "Adds CV-based variation to L∞ (maximum length) and K (growth rate).",
+        "Rebuilds growth structures per sample — slower than mortality uncertainty.",
+        "Different from Growth CV, which controls within-population size variability.",
+        "Use this when uncertain about the true mean growth parameters for this stock."
       ))),
 
       actionButton("run_sim", "Run Simulation", class = "btn-primary"),
@@ -440,57 +447,112 @@ server <- function(input, output, session) {
       pop_structure_data(list(length_data = length_data, age_data = age_data))
       sim_results(sim_out$sim_df)
 
-      uncertainty_cv <- get_uncertainty_cv(input$param_uncertainty)
-      if (uncertainty_cv > 0) {
-        incProgress(0, message = "Running parameter uncertainty...", detail = "Starting...")
-        unc_raw <- run_uncertainty_simulation(
-          nat_mort = input$nat_mort, U = input$exploitation,
-          DisMort  = input$dismort,  cv = uncertainty_cv,
-          nsim     = input$nsim,
-          bin_midpoints  = bin_midpoints,    length_bins   = length_bins,
-          Growth_matrix  = gm$Growth_matrix, recruit_dist  = gm$recruit_dist,
-          Vulcap_bins    = vc$Vulcap_bins,   Vulharv_bins  = vc$Vulharv_bins,
-          trophyvul_bins = vc$trophyvul_bins, Fec_bins     = vc$Fec_bins,
-          Wt_bins        = vc$Wt_bins,       M_bins        = vc$M_bins,
-          Amax = Amax, Ymax = Ymax,
-          Ro = input$R0, rec_cv = input$rec_cv,
-          enable_ddr         = isTRUE(input$enable_ddr),
-          steepness          = input$steepness,
-          enable_depensation = isTRUE(input$enable_depensation),
-          progress_fn = function(k, n) {
-            if (k %% max(1L, n %/% 20L) == 0)
-              incProgress(0, detail = paste("Uncertainty sample", k, "of", n))
-          }
-        )
-        uncertainty_results(unc_raw)
+      mort_cv       <- get_uncertainty_cv(input$mort_uncertainty)
+      growth_cv_unc <- get_uncertainty_cv(input$growth_uncertainty)
 
-        # Generate year-by-year parameter trajectories for time series display.
-        # CI band is the same every year (same distribution); example trajectory
-        # draws one fresh sample per year to show realistic year-to-year wobble.
-        ci_draws <- sample_mortality_parameters(
-          input$nat_mort, input$exploitation, input$dismort,
-          uncertainty_cv, max(500L, input$nsim)
+      if (mort_cv > 0 || growth_cv_unc > 0) {
+        incProgress(0, message = "Running parameter uncertainty...", detail = "Starting...")
+        n            <- input$nsim
+        mort_samps   <- sample_mortality_parameters(
+          input$nat_mort, input$exploitation, input$dismort, mort_cv, n
         )
-        ex_yr <- sample_mortality_parameters(
-          input$nat_mort, input$exploitation, input$dismort,
-          uncertainty_cv, Ymax
-        )
-        # Before burn-in: no harvest (U = 0, DisMort = 0); M present throughout
-        pts <- data.frame(
-          Year     = seq_len(Ymax),
-          U_nom    = c(rep(0, burnin_years), rep(input$exploitation,  Ymax - burnin_years)),
-          U_lower  = c(rep(0, burnin_years), rep(quantile(ci_draws$U,        0.025), Ymax - burnin_years)),
-          U_upper  = c(rep(0, burnin_years), rep(quantile(ci_draws$U,        0.975), Ymax - burnin_years)),
-          U_ex     = c(rep(0, burnin_years), ex_yr$U[(burnin_years + 1):Ymax]),
-          M_nom    = input$nat_mort,
-          M_lower  = quantile(ci_draws$nat_mort, 0.025),
-          M_upper  = quantile(ci_draws$nat_mort, 0.975),
-          M_ex     = ex_yr$nat_mort,
-          Dm_nom   = c(rep(0, burnin_years), rep(input$dismort,  Ymax - burnin_years)),
-          Dm_lower = c(rep(0, burnin_years), rep(quantile(ci_draws$DisMort,  0.025), Ymax - burnin_years)),
-          Dm_upper = c(rep(0, burnin_years), rep(quantile(ci_draws$DisMort,  0.975), Ymax - burnin_years)),
-          Dm_ex    = c(rep(0, burnin_years), ex_yr$DisMort[(burnin_years + 1):Ymax])
-        )
+        growth_samps <- sample_growth_parameters(input$linf, input$vbk, growth_cv_unc, n)
+
+        unc_list <- vector("list", n)
+        for (k in seq_len(n)) {
+          if (k %% max(1L, n %/% 20L) == 0)
+            incProgress(0, detail = paste("Uncertainty sample", k, "of", n))
+
+          if (growth_cv_unc > 0) {
+            bins_k <- make_length_bins(growth_samps$Linf[k])
+            bm_k   <- bins_k$bin_midpoints
+            lb_k   <- bins_k$length_bins
+            gm_k   <- make_growth_matrix(
+              Linf = growth_samps$Linf[k], vbk = growth_samps$vbk[k], t0 = input$t0,
+              bin_midpoints = bm_k, length_bins = lb_k, growth_cv = input$growth_cv
+            )
+            vc_k   <- make_vulnerability_curves(
+              bin_midpoints    = bm_k,
+              Capsize          = input$capsize,    Harvlim        = input$harvlim,
+              mat_size         = input$mat_size,   memorable_size = input$memorable_size,
+              wl_a             = input$wl_a,       wl_b           = input$wl_b,
+              nat_mort         = input$nat_mort,   fec_exp        = fec_exp,
+              enable_slot      = isTRUE(input$enable_slot),
+              slot_type        = input$slot_type,
+              slot_upper       = input$slot_upper,
+              enable_max_limit = isTRUE(input$enable_max_limit),
+              max_harvest_size = input$max_harvest_size
+            )
+          } else {
+            bm_k <- bin_midpoints; lb_k <- length_bins; gm_k <- gm; vc_k <- vc
+          }
+
+          S_bins_k <- exp(-vc_k$M_bins * (mort_samps$nat_mort[k] / input$nat_mort))
+
+          sim_k <- run_population_simulation(
+            bin_midpoints  = bm_k,                 length_bins    = lb_k,
+            Growth_matrix  = gm_k$Growth_matrix,   recruit_dist   = gm_k$recruit_dist,
+            Vulcap_bins    = vc_k$Vulcap_bins,     Vulharv_bins   = vc_k$Vulharv_bins,
+            trophyvul_bins = vc_k$trophyvul_bins,  Fec_bins       = vc_k$Fec_bins,
+            Wt_bins        = vc_k$Wt_bins,         S_bins         = S_bins_k,
+            Amax = Amax, Ymax = Ymax,
+            Ro = input$R0, rec_cv = input$rec_cv,
+            U = mort_samps$U[k], DisMort = mort_samps$DisMort[k],
+            nsim = 5L,
+            enable_ddr         = isTRUE(input$enable_ddr),
+            steepness          = input$steepness,
+            enable_depensation = isTRUE(input$enable_depensation),
+            collect_full_output = FALSE
+          )
+          df_k <- sim_k$sim_df
+          unc_list[[k]] <- data.frame(
+            YPR                 = mean(df_k$YPR,                 na.rm = TRUE),
+            SPR                 = mean(df_k$SPR,                 na.rm = TRUE),
+            Prop                = mean(df_k$Prop,                na.rm = TRUE),
+            MeanLengthHarvested = mean(df_k$MeanLengthHarvested, na.rm = TRUE),
+            nat_mort = mort_samps$nat_mort[k],
+            U        = mort_samps$U[k],
+            DisMort  = mort_samps$DisMort[k],
+            Linf     = growth_samps$Linf[k],
+            vbk      = growth_samps$vbk[k]
+          )
+        }
+        uncertainty_results(do.call(rbind, unc_list))
+
+        # Build parameter time series data for the time series tab.
+        pts <- data.frame(Year = seq_len(Ymax))
+
+        if (mort_cv > 0) {
+          ci_m <- sample_mortality_parameters(
+            input$nat_mort, input$exploitation, input$dismort, mort_cv, max(500L, n)
+          )
+          ex_m <- sample_mortality_parameters(
+            input$nat_mort, input$exploitation, input$dismort, mort_cv, Ymax
+          )
+          pts$U_nom    <- c(rep(0, burnin_years), rep(input$exploitation,             Ymax - burnin_years))
+          pts$U_lower  <- c(rep(0, burnin_years), rep(quantile(ci_m$U,        0.025), Ymax - burnin_years))
+          pts$U_upper  <- c(rep(0, burnin_years), rep(quantile(ci_m$U,        0.975), Ymax - burnin_years))
+          pts$U_ex     <- c(rep(0, burnin_years), ex_m$U[(burnin_years + 1):Ymax])
+          pts$M_nom    <- input$nat_mort
+          pts$M_lower  <- quantile(ci_m$nat_mort, 0.025)
+          pts$M_upper  <- quantile(ci_m$nat_mort, 0.975)
+          pts$M_ex     <- ex_m$nat_mort
+          pts$Dm_nom   <- c(rep(0, burnin_years), rep(input$dismort,                  Ymax - burnin_years))
+          pts$Dm_lower <- c(rep(0, burnin_years), rep(quantile(ci_m$DisMort,  0.025), Ymax - burnin_years))
+          pts$Dm_upper <- c(rep(0, burnin_years), rep(quantile(ci_m$DisMort,  0.975), Ymax - burnin_years))
+          pts$Dm_ex    <- c(rep(0, burnin_years), ex_m$DisMort[(burnin_years + 1):Ymax])
+        }
+
+        if (growth_cv_unc > 0) {
+          ci_g <- sample_growth_parameters(input$linf, input$vbk, growth_cv_unc, max(500L, n))
+          pts$Linf_nom   <- input$linf
+          pts$Linf_lower <- quantile(ci_g$Linf, 0.025)
+          pts$Linf_upper <- quantile(ci_g$Linf, 0.975)
+          pts$Vbk_nom    <- input$vbk
+          pts$Vbk_lower  <- quantile(ci_g$vbk,  0.025)
+          pts$Vbk_upper  <- quantile(ci_g$vbk,  0.975)
+        }
+
         param_ts_data(pts)
       } else {
         uncertainty_results(NULL)
@@ -552,8 +614,12 @@ server <- function(input, output, session) {
                   sd(results$Prop, na.rm = TRUE)))
     } else {
       unc_summary <- summarize_uncertainty_results(unc)
-      cat(sprintf("Results with %s parameter uncertainty (median [95%% interval]):\n",
-                  input$param_uncertainty))
+      unc_parts <- c(
+        if (get_uncertainty_cv(input$mort_uncertainty)   > 0) paste0(input$mort_uncertainty,   " mortality") else NULL,
+        if (get_uncertainty_cv(input$growth_uncertainty) > 0) paste0(input$growth_uncertainty, " growth")   else NULL
+      )
+      cat(sprintf("Results with %s uncertainty (median [95%% interval]):\n",
+                  paste(unc_parts, collapse = " + ")))
       ypr_row  <- unc_summary[unc_summary$metric == "YPR",                 ]
       spr_row  <- unc_summary[unc_summary$metric == "SPR",                 ]
       prop_row <- unc_summary[unc_summary$metric == "Prop",                ]
@@ -581,8 +647,13 @@ server <- function(input, output, session) {
     req(sim_results())
     unc        <- uncertainty_results()
     plot_data  <- if (!is.null(unc)) unc else sim_results()
-    sub        <- if (!is.null(unc))
-      paste0("Distribution across parameter uncertainty (", input$param_uncertainty, ")") else NULL
+    sub        <- if (!is.null(unc)) {
+      unc_parts <- c(
+        if (get_uncertainty_cv(input$mort_uncertainty)   > 0) paste0(input$mort_uncertainty,   " mortality") else NULL,
+        if (get_uncertainty_cv(input$growth_uncertainty) > 0) paste0(input$growth_uncertainty, " growth")   else NULL
+      )
+      paste0("Distribution across ", paste(unc_parts, collapse = " + "), " uncertainty")
+    } else NULL
     p <- ggplot(plot_data, aes(x = "", y = YPR)) +
       geom_violin(fill = "steelblue", alpha = 0.7, color = "black") +
       geom_boxplot(width = 0.1, fill = "white", alpha = 0.5) +
@@ -599,8 +670,13 @@ server <- function(input, output, session) {
     req(sim_results())
     unc        <- uncertainty_results()
     plot_data  <- if (!is.null(unc)) unc else sim_results()
-    sub        <- if (!is.null(unc))
-      paste0("Distribution across parameter uncertainty (", input$param_uncertainty, ")") else NULL
+    sub        <- if (!is.null(unc)) {
+      unc_parts <- c(
+        if (get_uncertainty_cv(input$mort_uncertainty)   > 0) paste0(input$mort_uncertainty,   " mortality") else NULL,
+        if (get_uncertainty_cv(input$growth_uncertainty) > 0) paste0(input$growth_uncertainty, " growth")   else NULL
+      )
+      paste0("Distribution across ", paste(unc_parts, collapse = " + "), " uncertainty")
+    } else NULL
     p <- ggplot(plot_data, aes(x = "", y = SPR)) +
       geom_violin(fill = "darkgreen", alpha = 0.7, color = "black") +
       geom_boxplot(width = 0.1, fill = "white", alpha = 0.5) +
@@ -617,8 +693,13 @@ server <- function(input, output, session) {
     req(sim_results())
     unc        <- uncertainty_results()
     plot_data  <- if (!is.null(unc)) unc else sim_results()
-    sub        <- if (!is.null(unc))
-      paste0("Distribution across parameter uncertainty (", input$param_uncertainty, ")") else NULL
+    sub        <- if (!is.null(unc)) {
+      unc_parts <- c(
+        if (get_uncertainty_cv(input$mort_uncertainty)   > 0) paste0(input$mort_uncertainty,   " mortality") else NULL,
+        if (get_uncertainty_cv(input$growth_uncertainty) > 0) paste0(input$growth_uncertainty, " growth")   else NULL
+      )
+      paste0("Distribution across ", paste(unc_parts, collapse = " + "), " uncertainty")
+    } else NULL
     memorable_inches <- round(input$memorable_size / 25.4, 1)
     p <- ggplot(plot_data, aes(x = "", y = Prop)) +
       geom_violin(fill = "orange", alpha = 0.7, color = "black") +
@@ -687,8 +768,11 @@ server <- function(input, output, session) {
            subtitle = "Dashed red line: 20% SSB₀ (depensation threshold) | Gray: unfished burn-in",
            x = "Year", y = "SSB") +
       theme_minimal()
-    pts <- param_ts_data()
-    if (!is.null(pts)) {
+    pts        <- param_ts_data()
+    all_plots  <- list(ggplotly(p1), ggplotly(p2), ggplotly(p3), ggplotly(p4))
+    unc_labels <- character(0)
+
+    if (!is.null(pts) && "U_nom" %in% names(pts)) {
       p5 <- ggplot(pts, aes(x = Year)) +
         annotate("rect", xmin = 1, xmax = burnin_years_plot, ymin = -Inf, ymax = Inf,
                  fill = "gray", alpha = 0.2) +
@@ -717,30 +801,41 @@ server <- function(input, output, session) {
         geom_line(aes(y = Dm_nom), color = "darkorchid", size = 1, linetype = "dashed") +
         geom_vline(xintercept = burnin_years_plot, linetype = "dotted", color = "gray40", alpha = 0.7) +
         labs(title = "Discard Mortality — example trajectory ± 95% uncertainty",
-             x = "Year", y = "Discard mort.") +
+             x = "", y = "Discard mort.") +
         theme_minimal()
-      subplot(
-        ggplotly(p1), ggplotly(p2), ggplotly(p3), ggplotly(p4),
-        ggplotly(p5), ggplotly(p6), ggplotly(p7),
-        nrows = 7, shareX = TRUE, titleY = TRUE
-      ) %>%
-        layout(title = list(
-          text = paste0("Population Metrics Over Time<br>",
-                        "<sup>Mean across ", input$nsim, " simulations | ",
-                        input$param_uncertainty, " parameter uncertainty shown</sup>"),
-          x = 0.5, xanchor = "center"
-        ))
-    } else {
-      subplot(
-        ggplotly(p1), ggplotly(p2), ggplotly(p3), ggplotly(p4),
-        nrows = 4, shareX = TRUE, titleY = TRUE
-      ) %>%
-        layout(title = list(
-          text = paste0("Population Metrics Over Time<br>",
-                        "<sup>Mean across ", input$nsim, " simulations with 95% prediction intervals</sup>"),
-          x = 0.5, xanchor = "center"
-        ))
+      all_plots  <- c(all_plots, list(ggplotly(p5), ggplotly(p6), ggplotly(p7)))
+      unc_labels <- c(unc_labels, paste0(input$mort_uncertainty, " mortality"))
     }
+
+    if (!is.null(pts) && "Linf_nom" %in% names(pts)) {
+      p8 <- ggplot(pts, aes(x = Year)) +
+        geom_ribbon(aes(ymin = Linf_lower, ymax = Linf_upper), fill = "seagreen", alpha = 0.2) +
+        geom_hline(yintercept = pts$Linf_nom[1], color = "seagreen", size = 1, linetype = "dashed") +
+        labs(title = "L∞ — 95% uncertainty range across parameter draws",
+             x = "", y = "L∞ (mm)") +
+        theme_minimal()
+      p9 <- ggplot(pts, aes(x = Year)) +
+        geom_ribbon(aes(ymin = Vbk_lower, ymax = Vbk_upper), fill = "goldenrod3", alpha = 0.2) +
+        geom_hline(yintercept = pts$Vbk_nom[1], color = "goldenrod3", size = 1, linetype = "dashed") +
+        labs(title = "K — 95% uncertainty range across parameter draws",
+             x = "Year", y = "K") +
+        theme_minimal()
+      all_plots  <- c(all_plots, list(ggplotly(p8), ggplotly(p9)))
+      unc_labels <- c(unc_labels, paste0(input$growth_uncertainty, " growth"))
+    }
+
+    title_sub <- if (length(unc_labels) > 0)
+      paste0(" | ", paste(unc_labels, collapse = " + "), " uncertainty shown")
+    else
+      " with 95% prediction intervals"
+
+    do.call(subplot, c(all_plots,
+                       list(nrows = length(all_plots), shareX = TRUE, titleY = TRUE))) %>%
+      layout(title = list(
+        text = paste0("Population Metrics Over Time<br>",
+                      "<sup>Mean across ", input$nsim, " simulations", title_sub, "</sup>"),
+        x = 0.5, xanchor = "center"
+      ))
   })
 
   output$pop_structure <- renderPlotly({
