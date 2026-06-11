@@ -150,10 +150,11 @@ ui <- fluidPage(
                   choices = c("Off", "Low", "Medium", "High"),
                   selected = "Off"),
       helpText(tags$small(tags$em(
-        "Adds CV-based variation to L∞ (maximum length) and K (growth rate).",
-        "Rebuilds growth structures per sample — slower than mortality uncertainty.",
+        "Samples a single growth-vigor factor: larger-than-nominal L∞ is paired with slower K,",
+        "and vice versa, preserving the Beverton-Holt L∞ × K relationship.",
+        "Low = 10%, Medium = 20%, High = 30% CV on the growth-vigor factor.",
         "Different from Growth CV, which controls within-population size variability.",
-        "Use this when uncertain about the true mean growth parameters for this stock."
+        "Rebuilds growth structures per sample — slower than mortality uncertainty."
       ))),
 
       actionButton("run_sim", "Run Simulation", class = "btn-primary"),
@@ -189,7 +190,7 @@ ui <- fluidPage(
         
         tabPanel("Time Series",
                  br(),
-                 plotlyOutput("timeseries_plot", height = "600px")
+                 uiOutput("timeseries_ui")
         ),
         
         tabPanel("Population Structure",
@@ -713,6 +714,16 @@ server <- function(input, output, session) {
     ggplotly(p)
   })
 
+  output$timeseries_ui <- renderUI({
+    n <- 4
+    pts <- param_ts_data()
+    if (!is.null(pts)) {
+      if ("U_nom"    %in% names(pts)) n <- n + 3
+      if ("Linf_nom" %in% names(pts)) n <- n + 2
+    }
+    plotlyOutput("timeseries_plot", height = paste0(n * 170, "px"))
+  })
+
   output$timeseries_plot <- renderPlotly({
     req(time_series_data())
     ts_data <- time_series_data()
@@ -810,13 +821,13 @@ server <- function(input, output, session) {
     if (!is.null(pts) && "Linf_nom" %in% names(pts)) {
       p8 <- ggplot(pts, aes(x = Year)) +
         geom_ribbon(aes(ymin = Linf_lower, ymax = Linf_upper), fill = "seagreen", alpha = 0.2) +
-        geom_hline(yintercept = pts$Linf_nom[1], color = "seagreen", size = 1, linetype = "dashed") +
+        geom_hline(yintercept = pts$Linf_nom[1], color = "darkgreen", size = 1.2, linetype = "dashed") +
         labs(title = "L∞ — 95% uncertainty range across parameter draws",
              x = "", y = "L∞ (mm)") +
         theme_minimal()
       p9 <- ggplot(pts, aes(x = Year)) +
         geom_ribbon(aes(ymin = Vbk_lower, ymax = Vbk_upper), fill = "goldenrod3", alpha = 0.2) +
-        geom_hline(yintercept = pts$Vbk_nom[1], color = "goldenrod3", size = 1, linetype = "dashed") +
+        geom_hline(yintercept = pts$Vbk_nom[1], color = "darkgoldenrod", size = 1.2, linetype = "dashed") +
         labs(title = "K — 95% uncertainty range across parameter draws",
              x = "Year", y = "K") +
         theme_minimal()
@@ -831,11 +842,15 @@ server <- function(input, output, session) {
 
     do.call(subplot, c(all_plots,
                        list(nrows = length(all_plots), shareX = TRUE, titleY = TRUE))) %>%
-      layout(title = list(
-        text = paste0("Population Metrics Over Time<br>",
-                      "<sup>Mean across ", input$nsim, " simulations", title_sub, "</sup>"),
-        x = 0.5, xanchor = "center"
-      ))
+      layout(
+        title  = list(
+          text    = paste0("Population Metrics Over Time<br>",
+                           "<sup>Mean across ", input$nsim, " simulations", title_sub, "</sup>"),
+          x       = 0.5,
+          xanchor = "center"
+        ),
+        margin = list(l = 90, r = 30, t = 80, b = 60)
+      )
   })
 
   output$pop_structure <- renderPlotly({
