@@ -546,12 +546,15 @@ server <- function(input, output, session) {
 
         if (growth_cv_unc > 0) {
           ci_g <- sample_growth_parameters(input$linf, input$vbk, growth_cv_unc, max(500L, n))
+          ex_g <- sample_growth_parameters(input$linf, input$vbk, growth_cv_unc, Ymax)
           pts$Linf_nom   <- input$linf
           pts$Linf_lower <- quantile(ci_g$Linf, 0.025)
           pts$Linf_upper <- quantile(ci_g$Linf, 0.975)
+          pts$Linf_ex    <- ex_g$Linf
           pts$Vbk_nom    <- input$vbk
           pts$Vbk_lower  <- quantile(ci_g$vbk,  0.025)
           pts$Vbk_upper  <- quantile(ci_g$vbk,  0.975)
+          pts$Vbk_ex     <- ex_g$vbk
         }
 
         param_ts_data(pts)
@@ -821,14 +824,16 @@ server <- function(input, output, session) {
     if (!is.null(pts) && "Linf_nom" %in% names(pts)) {
       p8 <- ggplot(pts, aes(x = Year)) +
         geom_ribbon(aes(ymin = Linf_lower, ymax = Linf_upper), fill = "seagreen", alpha = 0.2) +
-        geom_hline(yintercept = pts$Linf_nom[1], color = "darkgreen", size = 1.2, linetype = "dashed") +
-        labs(title = "L∞ — 95% uncertainty range across parameter draws",
+        geom_line(aes(y = Linf_ex),  color = "seagreen4",  size = 0.6, alpha = 0.7) +
+        geom_line(aes(y = Linf_nom), color = "darkgreen",  size = 1,   linetype = "dashed") +
+        labs(title = "L∞ — example trajectory ± 95% uncertainty",
              x = "", y = "L∞ (mm)") +
         theme_minimal()
       p9 <- ggplot(pts, aes(x = Year)) +
         geom_ribbon(aes(ymin = Vbk_lower, ymax = Vbk_upper), fill = "goldenrod3", alpha = 0.2) +
-        geom_hline(yintercept = pts$Vbk_nom[1], color = "darkgoldenrod", size = 1.2, linetype = "dashed") +
-        labs(title = "K — 95% uncertainty range across parameter draws",
+        geom_line(aes(y = Vbk_ex),  color = "goldenrod4",  size = 0.6, alpha = 0.7) +
+        geom_line(aes(y = Vbk_nom), color = "darkgoldenrod", size = 1, linetype = "dashed") +
+        labs(title = "K — example trajectory ± 95% uncertainty",
              x = "Year", y = "K") +
         theme_minimal()
       all_plots  <- c(all_plots, list(ggplotly(p8), ggplotly(p9)))
