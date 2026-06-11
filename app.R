@@ -188,12 +188,13 @@ ui <- fluidPage(
                  br(),
                  plotlyOutput("ypr_plot", height = "300px"),
                  plotlyOutput("spr_plot", height = "300px"),
-                 plotlyOutput("prop_plot", height = "300px")
+                 plotlyOutput("prop_plot", height = "300px"),
+                 uiOutput("param_hist_ui")
         ),
-        
+
         tabPanel("Time Series",
                  br(),
-                 uiOutput("timeseries_ui")
+                 plotlyOutput("timeseries_plot", height = "700px")
         ),
         
         tabPanel("Population Structure",
@@ -341,7 +342,6 @@ server <- function(input, output, session) {
   detailed_results <- reactiveVal(data.frame())
   yield_curve_data    <- reactiveVal(NULL)
   uncertainty_results <- reactiveVal(NULL)
-  param_ts_data       <- reactiveVal(NULL)
 
   # Species parameter presets
   observeEvent(input$species, {
@@ -522,47 +522,8 @@ server <- function(input, output, session) {
           )
         }
         uncertainty_results(do.call(rbind, unc_list))
-
-        pts <- data.frame(Year = seq_len(Ymax))
-
-        if (mort_cv > 0) {
-          ci_m <- sample_mortality_parameters(
-            input$nat_mort, input$exploitation, input$dismort, mort_cv, max(500L, n)
-          )
-          ex_m <- sample_mortality_parameters(
-            input$nat_mort, input$exploitation, input$dismort, mort_cv, Ymax
-          )
-          pts$U_nom    <- c(rep(0, burnin_years), rep(input$exploitation,             Ymax - burnin_years))
-          pts$U_lower  <- c(rep(0, burnin_years), rep(quantile(ci_m$U,        0.025), Ymax - burnin_years))
-          pts$U_upper  <- c(rep(0, burnin_years), rep(quantile(ci_m$U,        0.975), Ymax - burnin_years))
-          pts$U_ex     <- c(rep(0, burnin_years), ex_m$U[(burnin_years + 1):Ymax])
-          pts$M_nom    <- input$nat_mort
-          pts$M_lower  <- quantile(ci_m$nat_mort, 0.025)
-          pts$M_upper  <- quantile(ci_m$nat_mort, 0.975)
-          pts$M_ex     <- ex_m$nat_mort
-          pts$Dm_nom   <- c(rep(0, burnin_years), rep(input$dismort,                  Ymax - burnin_years))
-          pts$Dm_lower <- c(rep(0, burnin_years), rep(quantile(ci_m$DisMort,  0.025), Ymax - burnin_years))
-          pts$Dm_upper <- c(rep(0, burnin_years), rep(quantile(ci_m$DisMort,  0.975), Ymax - burnin_years))
-          pts$Dm_ex    <- c(rep(0, burnin_years), ex_m$DisMort[(burnin_years + 1):Ymax])
-        }
-
-        if (growth_cv_unc > 0) {
-          ci_g <- sample_growth_parameters(input$linf, input$vbk, growth_cv_unc, max(500L, n))
-          ex_g <- sample_growth_parameters(input$linf, input$vbk, growth_cv_unc, Ymax)
-          pts$Linf_nom   <- input$linf
-          pts$Linf_lower <- quantile(ci_g$Linf, 0.025)
-          pts$Linf_upper <- quantile(ci_g$Linf, 0.975)
-          pts$Linf_ex    <- ex_g$Linf
-          pts$Vbk_nom    <- input$vbk
-          pts$Vbk_lower  <- quantile(ci_g$vbk,  0.025)
-          pts$Vbk_upper  <- quantile(ci_g$vbk,  0.975)
-          pts$Vbk_ex     <- ex_g$vbk
-        }
-
-        param_ts_data(pts)
       } else {
         uncertainty_results(NULL)
-        param_ts_data(NULL)
       }
     })
   })
@@ -719,16 +680,6 @@ server <- function(input, output, session) {
     ggplotly(p)
   })
 
-  output$timeseries_ui <- renderUI({
-    n <- 4
-    pts <- param_ts_data()
-    if (!is.null(pts)) {
-      if ("U_nom"    %in% names(pts)) n <- n + 3
-      if ("Linf_nom" %in% names(pts)) n <- n + 2
-    }
-    plotlyOutput("timeseries_plot", height = paste0(n * 170, "px"))
-  })
-
   output$timeseries_plot <- renderPlotly({
     req(time_series_data())
     ts_data <- time_series_data()
@@ -806,80 +757,72 @@ server <- function(input, output, session) {
            subtitle = "Dashed red line: 20% SSB₀ (depensation threshold) | Gray: unfished burn-in",
            x = "Year", y = "SSB") +
       theme_minimal()
-    pts        <- param_ts_data()
-    all_plots  <- list(ggplotly(p1), ggplotly(p2), ggplotly(p3), ggplotly(p4))
-    unc_labels <- character(0)
-
-    if (!is.null(pts) && "U_nom" %in% names(pts)) {
-      p5 <- ggplot(pts, aes(x = Year)) +
-        annotate("rect", xmin = 1, xmax = burnin_years_plot, ymin = -Inf, ymax = Inf,
-                 fill = "gray", alpha = 0.2) +
-        geom_ribbon(aes(ymin = U_lower, ymax = U_upper), fill = "steelblue", alpha = 0.2) +
-        geom_line(aes(y = U_ex),  color = "steelblue", size = 0.6, alpha = 0.7) +
-        geom_line(aes(y = U_nom), color = "steelblue", size = 1, linetype = "dashed") +
-        geom_vline(xintercept = burnin_years_plot, linetype = "dotted", color = "gray40", alpha = 0.7) +
-        labs(title = "Exploitation Rate (U) — example trajectory ± 95% uncertainty",
-             x = "", y = "U") +
-        theme_minimal()
-      p6 <- ggplot(pts, aes(x = Year)) +
-        annotate("rect", xmin = 1, xmax = burnin_years_plot, ymin = -Inf, ymax = Inf,
-                 fill = "gray", alpha = 0.2) +
-        geom_ribbon(aes(ymin = M_lower, ymax = M_upper), fill = "tomato3", alpha = 0.2) +
-        geom_line(aes(y = M_ex),  color = "tomato3", size = 0.6, alpha = 0.7) +
-        geom_line(aes(y = M_nom), color = "tomato3", size = 1, linetype = "dashed") +
-        geom_vline(xintercept = burnin_years_plot, linetype = "dotted", color = "gray40", alpha = 0.7) +
-        labs(title = "Natural Mortality (M) — example trajectory ± 95% uncertainty",
-             x = "", y = "M") +
-        theme_minimal()
-      p7 <- ggplot(pts, aes(x = Year)) +
-        annotate("rect", xmin = 1, xmax = burnin_years_plot, ymin = -Inf, ymax = Inf,
-                 fill = "gray", alpha = 0.2) +
-        geom_ribbon(aes(ymin = Dm_lower, ymax = Dm_upper), fill = "darkorchid", alpha = 0.2) +
-        geom_line(aes(y = Dm_ex),  color = "darkorchid", size = 0.6, alpha = 0.7) +
-        geom_line(aes(y = Dm_nom), color = "darkorchid", size = 1, linetype = "dashed") +
-        geom_vline(xintercept = burnin_years_plot, linetype = "dotted", color = "gray40", alpha = 0.7) +
-        labs(title = "Discard Mortality — example trajectory ± 95% uncertainty",
-             x = "", y = "Discard mort.") +
-        theme_minimal()
-      all_plots  <- c(all_plots, list(ggplotly(p5), ggplotly(p6), ggplotly(p7)))
-      unc_labels <- c(unc_labels, paste0(input$mort_uncertainty, " mortality"))
-    }
-
-    if (!is.null(pts) && "Linf_nom" %in% names(pts)) {
-      p8 <- ggplot(pts, aes(x = Year)) +
-        geom_ribbon(aes(ymin = Linf_lower, ymax = Linf_upper), fill = "seagreen", alpha = 0.2) +
-        geom_line(aes(y = Linf_ex),  color = "seagreen4",    size = 0.6, alpha = 0.7) +
-        geom_line(aes(y = Linf_nom), color = "darkgreen",    size = 1,   linetype = "dashed") +
-        labs(title = "L∞ — example trajectory ± 95% uncertainty",
-             x = "", y = "L∞ (mm)") +
-        theme_minimal()
-      p9 <- ggplot(pts, aes(x = Year)) +
-        geom_ribbon(aes(ymin = Vbk_lower, ymax = Vbk_upper), fill = "goldenrod3", alpha = 0.2) +
-        geom_line(aes(y = Vbk_ex),  color = "goldenrod4",    size = 0.6, alpha = 0.7) +
-        geom_line(aes(y = Vbk_nom), color = "darkgoldenrod", size = 1,   linetype = "dashed") +
-        labs(title = "K — example trajectory ± 95% uncertainty",
-             x = "Year", y = "K") +
-        theme_minimal()
-      all_plots  <- c(all_plots, list(ggplotly(p8), ggplotly(p9)))
-      unc_labels <- c(unc_labels, paste0(input$growth_uncertainty, " growth"))
-    }
-
-    title_sub <- if (length(unc_labels) > 0)
-      paste0(" | ", paste(unc_labels, collapse = " + "), " uncertainty shown")
-    else
-      " with 95% prediction intervals"
-
-    do.call(subplot, c(all_plots,
-                       list(nrows = length(all_plots), shareX = TRUE, titleY = TRUE))) %>%
+    subplot(ggplotly(p1), ggplotly(p2), ggplotly(p3), ggplotly(p4),
+            nrows = 4, shareX = TRUE, titleY = TRUE) %>%
       layout(
         title  = list(
           text    = paste0("Population Metrics Over Time<br>",
-                           "<sup>Mean across ", input$nsim, " simulations", title_sub, "</sup>"),
+                           "<sup>Mean across ", input$nsim, " simulations",
+                           if (!is.null(unc)) " | Outer band: parameter uncertainty" else " with 95% prediction intervals",
+                           "</sup>"),
           x       = 0.5,
           xanchor = "center"
         ),
         margin = list(l = 90, r = 30, t = 80, b = 60)
       )
+  })
+
+  output$param_hist_ui <- renderUI({
+    unc <- uncertainty_results()
+    if (is.null(unc)) return(NULL)
+    tagList(
+      br(),
+      h4("Sampled Parameter Distributions"),
+      helpText(tags$small(tags$em(
+        "Histograms of the parameter values actually sampled across uncertainty draws.",
+        "Dashed line marks the nominal (input) value."
+      ))),
+      plotlyOutput("param_hist_plot", height = "220px")
+    )
+  })
+
+  output$param_hist_plot <- renderPlotly({
+    req(uncertainty_results())
+    unc          <- uncertainty_results()
+    mort_cv      <- get_uncertainty_cv(input$mort_uncertainty)
+    growth_cv_u  <- get_uncertainty_cv(input$growth_uncertainty)
+    plots        <- list()
+
+    if (mort_cv > 0) {
+      p_m <- ggplot(unc, aes(x = nat_mort)) +
+        geom_histogram(fill = "tomato3", alpha = 0.7, bins = 30, color = "white") +
+        geom_vline(xintercept = input$nat_mort, linetype = "dashed", color = "black", size = 0.8) +
+        labs(title = "M", x = "Natural Mortality", y = "") + theme_minimal()
+      p_u <- ggplot(unc, aes(x = U)) +
+        geom_histogram(fill = "steelblue", alpha = 0.7, bins = 30, color = "white") +
+        geom_vline(xintercept = input$exploitation, linetype = "dashed", color = "black", size = 0.8) +
+        labs(title = "U", x = "Exploitation Rate", y = "") + theme_minimal()
+      p_dm <- ggplot(unc, aes(x = DisMort)) +
+        geom_histogram(fill = "darkorchid", alpha = 0.7, bins = 30, color = "white") +
+        geom_vline(xintercept = input$dismort, linetype = "dashed", color = "black", size = 0.8) +
+        labs(title = "Discard Mort.", x = "Discard Mortality", y = "") + theme_minimal()
+      plots <- c(plots, list(ggplotly(p_m), ggplotly(p_u), ggplotly(p_dm)))
+    }
+
+    if (growth_cv_u > 0) {
+      p_linf <- ggplot(unc, aes(x = Linf)) +
+        geom_histogram(fill = "seagreen", alpha = 0.7, bins = 30, color = "white") +
+        geom_vline(xintercept = input$linf, linetype = "dashed", color = "black", size = 0.8) +
+        labs(title = "L∞", x = "L∞ (mm)", y = "") + theme_minimal()
+      p_k <- ggplot(unc, aes(x = vbk)) +
+        geom_histogram(fill = "goldenrod3", alpha = 0.7, bins = 30, color = "white") +
+        geom_vline(xintercept = input$vbk, linetype = "dashed", color = "black", size = 0.8) +
+        labs(title = "K", x = "K", y = "") + theme_minimal()
+      plots <- c(plots, list(ggplotly(p_linf), ggplotly(p_k)))
+    }
+
+    do.call(subplot, c(plots, list(nrows = 1, shareY = FALSE, titleX = TRUE))) %>%
+      layout(showlegend = FALSE, margin = list(l = 40, r = 20, t = 40, b = 50))
   })
 
   output$pop_structure <- renderPlotly({
