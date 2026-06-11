@@ -568,7 +568,7 @@ server <- function(input, output, session) {
       mean_length_inches <- mean_length_mm / 25.4
       sd_length_mm <- sd(results$MeanLengthHarvested, na.rm = TRUE)
       sd_length_inches <- sd_length_mm / 25.4
-      cat(sprintf("  Mean Length Harvested: %.1f\" (%.0f mm) ± %.1f\" (%.0f mm)\n",
+      cat(sprintf("  Mean Length Harvested: %.1f\" (%.0f mm) ± %.1f\" (%.1f mm)\n",
                   mean_length_inches, mean_length_mm,
                   sd_length_inches, sd_length_mm))
       checks <- run_model_checks(results, list(U = input$exploitation, rec_cv = input$rec_cv))
