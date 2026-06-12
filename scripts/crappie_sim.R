@@ -64,7 +64,7 @@ U_df <- data.frame(
 )
 
 # ── Simulation settings ───────────────────────────────────────────────────────
-Ro   <- 1000L    # unfished recruitment (Ro is scaled; use relative comparisons)
+Ro   <- 10000L    # unfished recruitment (Ro is scaled; use relative comparisons)
 nsim <- 10000L   # Monte Carlo replicates per scenario × growth × U combination
 
 # ── Regulation scenario parameters ───────────────────────────────────────────
