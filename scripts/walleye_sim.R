@@ -159,7 +159,7 @@ for (i in seq_len(n_combos)) {
     t0            = growth$t0,
     bin_midpoints = bins$bin_midpoints,
     length_bins   = bins$length_bins,
-    growth_cv     = 0.10
+    growth_cv     = 0.20
   )
 
   # ── Step 3: Vulnerability and life-history curves ─────────────────────────
