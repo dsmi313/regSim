@@ -64,7 +64,7 @@ U_df <- data.frame(
 )
 
 # ── Simulation settings ───────────────────────────────────────────────────────
-Ro   <- 1000L    # unfished recruitment (Ro is scaled; use relative comparisons)
+Ro   <- 10000L    # unfished recruitment (Ro is scaled; use relative comparisons)
 nsim <- 10000L   # Monte Carlo replicates per scenario × growth × U combination
 
 # ── Regulation scenario parameters ───────────────────────────────────────────
@@ -159,7 +159,7 @@ for (i in seq_len(n_combos)) {
     t0            = growth$t0,
     bin_midpoints = bins$bin_midpoints,
     length_bins   = bins$length_bins,
-    growth_cv     = 0.10
+    growth_cv     = 0.20
   )
 
   # ── Step 3: Vulnerability and life-history curves ─────────────────────────

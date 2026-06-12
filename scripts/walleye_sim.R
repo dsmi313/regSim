@@ -12,9 +12,16 @@
 #   von Bertalanffy models for estimating walleye Stizostedion vitreum growth.
 #   North American Journal of Fisheries Management 14:561-572.
 #
-# Exploitation rates span the range reported for Midwest walleye fisheries
-# (Isermann et al. 2003; Quist et al. 2003). TODO: add specific citation for
-# your target system before submission.
+# Exploitation rates span documented walleye fisheries (typically 14-39%;
+# Isermann and Knight 2005, North American Journal of Fisheries Management;
+# Haglund et al. 2016, NAJFM 36:1315-1324; average ~34% at Escanaba Lake
+# before harvest elimination). Upper range represents heavily exploited systems.
+#
+# DisMort = 0.10: Payer et al. (1989, NAJFM 9:188-192) reported 5-10%
+# hooking mortality for walleye on artificial lures and leeches respectively.
+# Reeves and Bruesewitz (2007, NAJFM 27:443-452) reported 0-12% depending
+# on season and water temperature. Value of 0.10 is conservative and represents
+# warm-water open-water conditions.
 #
 # To combine with other species:
 #   all_sims <- dplyr::bind_rows(crappie_simulations_df,
@@ -55,21 +62,21 @@ growth_slow     <- get_growth_preset("walleye", "slow")
 growth_moderate <- get_growth_preset("walleye", "moderate")
 growth_fast     <- get_growth_preset("walleye", "fast")
 
-# ── Exploitation rates ────────────────────────────────────────────────────────
+# ── Exploitation rates — Isermann & Knight 2005; Haglund et al. 2016 ─────────
 # Prior and elevated estimates at low / moderate / high effort.
-# Typical Midwest walleye exploitation: 0.15-0.50 (Quist et al. 2003).
-# TODO: confirm specific U values against your cited walleye literature.
+# Tagged populations: 14-39% (Isermann and Knight 2005, Grand River, OH);
+# Escanaba Lake long-term mean ~34% (Haglund et al. 2016). Range capped at 50%.
 U_df <- data.frame(
   U_label    = c("Low-Prior",  "Low-Elevated",
                  "Mod-Prior",  "Mod-Elevated",
                  "High-Prior", "High-Elevated"),
-  U          = c(0.15, 0.20, 0.30, 0.40, 0.50, 0.60),
+  U          = c(0.15, 0.20, 0.30, 0.38, 0.44, 0.50),
   U_category = c("Low", "Low", "Moderate", "Moderate", "High", "High"),
   stringsAsFactors = FALSE
 )
 
 # ── Simulation settings ───────────────────────────────────────────────────────
-Ro   <- 1000L
+Ro   <- 10000L
 nsim <- 10000L
 
 # ── Regulation scenario parameters ───────────────────────────────────────────
@@ -81,7 +88,7 @@ scen1_Harvlim     <- 356
 scen1_enable_slot <- FALSE
 scen1_slot_type   <- "traditional"
 scen1_slot_upper  <- NA_real_
-scen1_DisMort     <- 0.10
+scen1_DisMort     <- 0.10   # conservative; Payer et al. 1989 (5-10%), Reeves and Bruesewitz 2007 (0-12%)
 
 # Scenario 2: Minimum length 457 mm (18 in.)
 # Conservative regulation used in trophy-focused or recovering stocks.
@@ -90,18 +97,17 @@ scen2_Harvlim     <- 457
 scen2_enable_slot <- FALSE
 scen2_slot_type   <- "traditional"
 scen2_slot_upper  <- NA_real_
-scen2_DisMort     <- 0.10
+scen2_DisMort     <- 0.10   # conservative; Payer et al. 1989 (5-10%), Reeves and Bruesewitz 2007 (0-12%)
 
-# Scenario 3: Protective slot 356–508 mm (14–20 in.)
-# Protects the quality class (14–20") from harvest; fish outside this range
-# (< 14" or trophy > 20") remain harvestable. Parallel in structure to the
-# crappie protective-slot scenarios in crappie_sim.R.
-scen3_name        <- "Protective slot 356-508 mm"
+# Scenario 3: Traditional slot 356–457 mm (14–18 in.)
+# Fish within the slot (14–18") must be released; those below 14" and above
+# 18" are harvestable, allowing slot fish to grow through to the upper class.
+scen3_name        <- "Traditional slot 356-457 mm"
 scen3_Harvlim     <- 356
 scen3_enable_slot <- TRUE
-scen3_slot_type   <- "protective"
-scen3_slot_upper  <- 508
-scen3_DisMort     <- 0.10
+scen3_slot_type   <- "traditional"
+scen3_slot_upper  <- 457
+scen3_DisMort     <- 0.10   # conservative; Payer et al. 1989 (5-10%), Reeves and Bruesewitz 2007 (0-12%)
 
 # ── Scenario table ────────────────────────────────────────────────────────────
 scen_params <- data.frame(
@@ -159,7 +165,7 @@ for (i in seq_len(n_combos)) {
     t0            = growth$t0,
     bin_midpoints = bins$bin_midpoints,
     length_bins   = bins$length_bins,
-    growth_cv     = 0.10
+    growth_cv     = 0.20
   )
 
   # ── Step 3: Vulnerability and life-history curves ─────────────────────────

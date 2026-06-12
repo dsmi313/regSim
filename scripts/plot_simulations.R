@@ -48,23 +48,41 @@ scen_levels <- c(
 # scen_levels <- c(
 #   "Min. length 356 mm (14 in.)",
 #   "Min. length 457 mm (18 in.)",
-#   "Protective slot 356-508 mm"
+#   "Traditional slot 356-457 mm"
 # )
 # LMB:
 # scen_levels <- c(
-#   "Min. length 305 mm (12 in.)",
-#   "Min. length 381 mm (15 in.)",
-#   "Protective slot 305-508 mm"
+#   "Min. length 305 mm, low mortality",
+#   "Min. length 305 mm, high mortality",
+#   "Protective slot 305-508 mm, low mortality",
+#   "Protective slot 305-508 mm, high mortality"
 # )
 
 # --- Scenario colors ------------------------------------------------------
 # One named color per scenario; names must match scen_levels exactly.
 # Swap hex codes to match your journal's color requirements.
+
+# Crappie (active):
 scen_colors <- c(
   "Min. length 254 mm (10 in.)"    = "#1b7837",
   "Min. length 305 mm (12 in.)"    = "#762a83",
   "Protective slot 254-305 mm"     = "#d6604d"
 )
+
+# Walleye (swap above for this):
+# scen_colors <- c(
+#   "Min. length 356 mm (14 in.)"  = "#1b7837",
+#   "Min. length 457 mm (18 in.)"  = "#762a83",
+#   "Traditional slot 356-457 mm"  = "#d6604d"
+# )
+
+# LMB — 2×2: hue = regulation type, shade = mortality level (swap above):
+# scen_colors <- c(
+#   "Min. length 305 mm, low mortality"          = "#1b7837",
+#   "Min. length 305 mm, high mortality"         = "#a6d96a",
+#   "Protective slot 305-508 mm, low mortality"  = "#762a83",
+#   "Protective slot 305-508 mm, high mortality" = "#c994c7"
+# )
 
 # ===========================================================================
 # SECTION 2 — FACTOR ORDERING

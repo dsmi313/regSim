@@ -8,14 +8,25 @@
 #   and harvested fish. Transactions of the American Fisheries Society
 #   137:1196-1207.
 #
-#   TODO: Add specific citation for your target bass population and the
-#   exploitation rates used (e.g., Allen et al. or Florida FWC reports).
+#   Allen, M.S., Walters, C.J., Myers, R. 2008. Temporal trends in largemouth
+#   bass exploitation in the United States and Canada. North American Journal
+#   of Fisheries Management 28:418-427.
 #
-# Exploitation rates reflect the range reported for inland bass fisheries
-# (typically 0.10-0.60; heavily fished systems toward the high end).
+# Exploitation rates: Allen, Walters, and Myers (2008, NAJFM 28:418-427)
+# synthesized 32 estimates spanning 51 years; mean exploitation was 0.35
+# (1976-1989) declining to 0.18 (1990-2003) as voluntary release increased.
+# Range here spans typical to heavily exploited systems including tournaments.
 #
-# Note: LMB release mortality is lower than crappie (~5%) because bass
-# tolerate handling well (compare crappie_sim.R, DisMort=0.09).
+# DisMort low (0.05): typical recreational C&R with artificial lures.
+# Muoneke and Childress (1994, Reviews in Fisheries Science 2:123-156)
+# compiled hooking mortality for 32 taxa; bass on artificial lures generally <5%.
+#
+# DisMort high (0.20): tournament conditions (summer heat, live-well stress,
+# delayed weigh-in). Neal and Lopez-Clayton (2001, NAJFM 21:834-842) reported
+# total tournament mortality averaging 42% in tropical conditions; temperate
+# estimates lower but still substantially elevated relative to recreational C&R.
+# Value of 0.20 represents a conservative upper bound for tournament mortality
+# under typical temperate conditions.
 #
 # To combine with other species:
 #   all_sims <- dplyr::bind_rows(crappie_simulations_df,
@@ -56,11 +67,11 @@ growth_slow     <- get_growth_preset("lmb", "slow")
 growth_moderate <- get_growth_preset("lmb", "moderate")
 growth_fast     <- get_growth_preset("lmb", "fast")
 
-# ── Exploitation rates ────────────────────────────────────────────────────────
+# ── Exploitation rates — Allen et al. 2008 ───────────────────────────────────
 # Prior and elevated estimates at low / moderate / high effort.
-# Range reflects inland bass fisheries; heavily fished tournament lakes
-# can exceed 0.50 (Allen et al. 2008).
-# TODO: confirm specific U values for your target bass population.
+# Mean exploitation: 0.35 (1976-1989), 0.18 (1990-2003) as voluntary release
+# increased (Allen et al. 2008, NAJFM 28:418-427). Range spans typical to
+# heavily fished tournament systems.
 U_df <- data.frame(
   U_label    = c("Low-Prior",  "Low-Elevated",
                  "Mod-Prior",  "Mod-Elevated",
@@ -71,49 +82,53 @@ U_df <- data.frame(
 )
 
 # ── Simulation settings ───────────────────────────────────────────────────────
-Ro   <- 1000L
+Ro   <- 10000L
 nsim <- 10000L
 
 # ── Regulation scenario parameters ───────────────────────────────────────────
+# 2×2 design: regulation (min. length vs. protective slot) × discard mortality
+# (low = recreational C&R, high = tournament conditions).
 
-# Scenario 1: Minimum length 305 mm (12 in.)
-# The most widespread bass minimum in the U.S.; baseline for comparison.
-scen1_name        <- "Min. length 305 mm (12 in.)"
+# Scenario 1: Minimum length 305 mm, low discard mortality
+scen1_name        <- "Min. length 305 mm, low mortality"
 scen1_Harvlim     <- 305
 scen1_enable_slot <- FALSE
 scen1_slot_type   <- "traditional"
 scen1_slot_upper  <- NA_real_
-scen1_DisMort     <- 0.05   # LMB release mortality ~5% (compare 9% for crappie)
+scen1_DisMort     <- 0.05   # Muoneke and Childress 1994 (<5% for artificial lures)
 
-# Scenario 2: Minimum length 381 mm (15 in.)
-# Quality-fish management; allows sub-legal fish to recruit to the quality class.
-scen2_name        <- "Min. length 381 mm (15 in.)"
-scen2_Harvlim     <- 381
+# Scenario 2: Minimum length 305 mm, high discard mortality
+scen2_name        <- "Min. length 305 mm, high mortality"
+scen2_Harvlim     <- 305
 scen2_enable_slot <- FALSE
 scen2_slot_type   <- "traditional"
 scen2_slot_upper  <- NA_real_
-scen2_DisMort     <- 0.05
+scen2_DisMort     <- 0.20   # tournament conditions; Neal and Lopez-Clayton 2001
 
-# Scenario 3: Protective slot 305–508 mm (12–20 in.)
-# Protects the 12–20" class (the primary quality-to-trophy range) from harvest;
-# fish < 12" and trophy > 20" remain harvestable. Used in Florida and Texas
-# to build trophy-size structure. Parallel in intent to the crappie and
-# walleye protective-slot scenarios.
-scen3_name        <- "Protective slot 305-508 mm"
+# Scenario 3: Protective slot 305–508 mm, low discard mortality
+scen3_name        <- "Protective slot 305-508 mm, low mortality"
 scen3_Harvlim     <- 305
 scen3_enable_slot <- TRUE
 scen3_slot_type   <- "protective"
 scen3_slot_upper  <- 508
-scen3_DisMort     <- 0.05
+scen3_DisMort     <- 0.05   # Muoneke and Childress 1994 (<5% for artificial lures)
+
+# Scenario 4: Protective slot 305–508 mm, high discard mortality
+scen4_name        <- "Protective slot 305-508 mm, high mortality"
+scen4_Harvlim     <- 305
+scen4_enable_slot <- TRUE
+scen4_slot_type   <- "protective"
+scen4_slot_upper  <- 508
+scen4_DisMort     <- 0.20   # tournament conditions; Neal and Lopez-Clayton 2001
 
 # ── Scenario table ────────────────────────────────────────────────────────────
 scen_params <- data.frame(
-  scenario    = c(scen1_name,        scen2_name,        scen3_name),
-  Harvlim     = c(scen1_Harvlim,     scen2_Harvlim,     scen3_Harvlim),
-  enable_slot = c(scen1_enable_slot, scen2_enable_slot, scen3_enable_slot),
-  slot_type   = c(scen1_slot_type,   scen2_slot_type,   scen3_slot_type),
-  slot_upper  = c(scen1_slot_upper,  scen2_slot_upper,  scen3_slot_upper),
-  DisMort     = c(scen1_DisMort,     scen2_DisMort,     scen3_DisMort),
+  scenario    = c(scen1_name,        scen2_name,        scen3_name,        scen4_name),
+  Harvlim     = c(scen1_Harvlim,     scen2_Harvlim,     scen3_Harvlim,     scen4_Harvlim),
+  enable_slot = c(scen1_enable_slot, scen2_enable_slot, scen3_enable_slot, scen4_enable_slot),
+  slot_type   = c(scen1_slot_type,   scen2_slot_type,   scen3_slot_type,   scen4_slot_type),
+  slot_upper  = c(scen1_slot_upper,  scen2_slot_upper,  scen3_slot_upper,  scen4_slot_upper),
+  DisMort     = c(scen1_DisMort,     scen2_DisMort,     scen3_DisMort,     scen4_DisMort),
   stringsAsFactors = FALSE
 )
 
@@ -130,10 +145,10 @@ combos <- merge(
 combos <- combos[order(combos$scenario, combos$growth_preset, combos$U), ]
 rownames(combos) <- NULL
 
-n_combos <- nrow(combos)  # 54
+n_combos <- nrow(combos)  # 72
 
 cat("Largemouth bass simulation\n")
-cat("  Combinations :", n_combos, "(3 scenarios x 3 growth x 6 U)\n")
+cat("  Combinations :", n_combos, "(4 scenarios x 3 growth x 6 U)\n")
 cat("  Replicates   :", nsim, "per combination\n")
 cat("  Total ticks  :", n_combos * nsim, "\n\n")
 
@@ -162,7 +177,7 @@ for (i in seq_len(n_combos)) {
     t0            = growth$t0,
     bin_midpoints = bins$bin_midpoints,
     length_bins   = bins$length_bins,
-    growth_cv     = 0.10
+    growth_cv     = 0.20
   )
 
   # ── Step 3: Vulnerability and life-history curves ─────────────────────────
