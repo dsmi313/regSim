@@ -12,12 +12,16 @@
 #   von Bertalanffy models for estimating walleye Stizostedion vitreum growth.
 #   North American Journal of Fisheries Management 14:561-572.
 #
-# Exploitation rates: typical walleye fisheries average 20-30%
-# (Isermann and Knight 2005, NAJFM; Haglund et al. 2016, NAJFM 36:1315-1324).
-# Upper range represents heavily exploited systems; capped at 50%.
+# Exploitation rates span documented walleye fisheries (typically 14-39%;
+# Isermann and Knight 2005, North American Journal of Fisheries Management;
+# Haglund et al. 2016, NAJFM 36:1315-1324; average ~34% at Escanaba Lake
+# before harvest elimination). Upper range represents heavily exploited systems.
+#
 # DisMort = 0.10: Payer et al. (1989, NAJFM 9:188-192) reported 5-10%
-# for artificial lures/leeches; Reeves and Bruesewitz (2007, NAJFM 27:443-452)
-# reported 0-12% depending on season. Conservative estimate used here.
+# hooking mortality for walleye on artificial lures and leeches respectively.
+# Reeves and Bruesewitz (2007, NAJFM 27:443-452) reported 0-12% depending
+# on season and water temperature. Value of 0.10 is conservative and represents
+# warm-water open-water conditions.
 #
 # To combine with other species:
 #   all_sims <- dplyr::bind_rows(crappie_simulations_df,
@@ -72,7 +76,7 @@ U_df <- data.frame(
 )
 
 # ── Simulation settings ───────────────────────────────────────────────────────
-Ro   <- 1000L
+Ro   <- 10000L
 nsim <- 10000L
 
 # ── Regulation scenario parameters ───────────────────────────────────────────
@@ -95,15 +99,14 @@ scen2_slot_type   <- "traditional"
 scen2_slot_upper  <- NA_real_
 scen2_DisMort     <- 0.10   # conservative; Payer et al. 1989 (5-10%), Reeves and Bruesewitz 2007 (0-12%)
 
-# Scenario 3: Protective slot 356–508 mm (14–20 in.)
-# Protects the quality class (14–20") from harvest; fish outside this range
-# (< 14" or trophy > 20") remain harvestable. Parallel in structure to the
-# crappie protective-slot scenarios in crappie_sim.R.
-scen3_name        <- "Protective slot 356-508 mm"
+# Scenario 3: Traditional slot 356–457 mm (14–18 in.)
+# Fish within the slot (14–18") must be released; those below 14" and above
+# 18" are harvestable, allowing slot fish to grow through to the upper class.
+scen3_name        <- "Traditional slot 356-457 mm"
 scen3_Harvlim     <- 356
 scen3_enable_slot <- TRUE
-scen3_slot_type   <- "protective"
-scen3_slot_upper  <- 508
+scen3_slot_type   <- "traditional"
+scen3_slot_upper  <- 457
 scen3_DisMort     <- 0.10   # conservative; Payer et al. 1989 (5-10%), Reeves and Bruesewitz 2007 (0-12%)
 
 # ── Scenario table ────────────────────────────────────────────────────────────
