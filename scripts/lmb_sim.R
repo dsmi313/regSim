@@ -8,14 +8,15 @@
 #   and harvested fish. Transactions of the American Fisheries Society
 #   137:1196-1207.
 #
-#   TODO: Add specific citation for your target bass population and the
-#   exploitation rates used (e.g., Allen et al. or Florida FWC reports).
+#   Allen, M.S., Walters, C.J., Myers, R. 2008. Temporal trends in largemouth
+#   bass exploitation in the United States and Canada. North American Journal
+#   of Fisheries Management 28:418-427.
 #
-# Exploitation rates reflect the range reported for inland bass fisheries
-# (typically 0.10-0.60; heavily fished systems toward the high end).
-#
-# Note: LMB release mortality is lower than crappie (~5%) because bass
-# tolerate handling well (compare crappie_sim.R, DisMort=0.09).
+# Exploitation rates: Allen et al. (2008, NAJFM 28:418-427) reported mean
+# exploitation of 0.35 (1976-1989) declining to 0.18 (1990-2003) as voluntary
+# release increased. Range here spans typical to heavily exploited systems.
+# DisMort = 0.05: Muoneke and Childress (1994, Rev Fish Sci 2:123-156)
+# review supports low hooking mortality (<5%) for bass on artificial lures.
 #
 # To combine with other species:
 #   all_sims <- dplyr::bind_rows(crappie_simulations_df,
@@ -56,11 +57,11 @@ growth_slow     <- get_growth_preset("lmb", "slow")
 growth_moderate <- get_growth_preset("lmb", "moderate")
 growth_fast     <- get_growth_preset("lmb", "fast")
 
-# ── Exploitation rates ────────────────────────────────────────────────────────
+# ── Exploitation rates — Allen et al. 2008 ───────────────────────────────────
 # Prior and elevated estimates at low / moderate / high effort.
-# Range reflects inland bass fisheries; heavily fished tournament lakes
-# can exceed 0.50 (Allen et al. 2008).
-# TODO: confirm specific U values for your target bass population.
+# Mean exploitation: 0.35 (1976-1989), 0.18 (1990-2003) as voluntary release
+# increased (Allen et al. 2008, NAJFM 28:418-427). Range spans typical to
+# heavily fished tournament systems.
 U_df <- data.frame(
   U_label    = c("Low-Prior",  "Low-Elevated",
                  "Mod-Prior",  "Mod-Elevated",
@@ -83,7 +84,7 @@ scen1_Harvlim     <- 305
 scen1_enable_slot <- FALSE
 scen1_slot_type   <- "traditional"
 scen1_slot_upper  <- NA_real_
-scen1_DisMort     <- 0.05   # LMB release mortality ~5% (compare 9% for crappie)
+scen1_DisMort     <- 0.05   # Muoneke and Childress 1994 (<5% for artificial lures)
 
 # Scenario 2: Minimum length 381 mm (15 in.)
 # Quality-fish management; allows sub-legal fish to recruit to the quality class.

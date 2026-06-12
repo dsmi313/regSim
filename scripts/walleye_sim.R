@@ -12,9 +12,12 @@
 #   von Bertalanffy models for estimating walleye Stizostedion vitreum growth.
 #   North American Journal of Fisheries Management 14:561-572.
 #
-# Exploitation rates span the range reported for Midwest walleye fisheries
-# (Isermann et al. 2003; Quist et al. 2003). TODO: add specific citation for
-# your target system before submission.
+# Exploitation rates: typical walleye fisheries average 20-30%
+# (Isermann and Knight 2005, NAJFM; Haglund et al. 2016, NAJFM 36:1315-1324).
+# Upper range represents heavily exploited systems; capped at 50%.
+# DisMort = 0.10: Payer et al. (1989, NAJFM 9:188-192) reported 5-10%
+# for artificial lures/leeches; Reeves and Bruesewitz (2007, NAJFM 27:443-452)
+# reported 0-12% depending on season. Conservative estimate used here.
 #
 # To combine with other species:
 #   all_sims <- dplyr::bind_rows(crappie_simulations_df,
@@ -55,15 +58,15 @@ growth_slow     <- get_growth_preset("walleye", "slow")
 growth_moderate <- get_growth_preset("walleye", "moderate")
 growth_fast     <- get_growth_preset("walleye", "fast")
 
-# ── Exploitation rates ────────────────────────────────────────────────────────
+# ── Exploitation rates — Isermann & Knight 2005; Haglund et al. 2016 ─────────
 # Prior and elevated estimates at low / moderate / high effort.
-# Typical Midwest walleye exploitation: 0.15-0.50 (Quist et al. 2003).
-# TODO: confirm specific U values against your cited walleye literature.
+# Tagged populations: 14-39% (Isermann and Knight 2005, Grand River, OH);
+# Escanaba Lake long-term mean ~34% (Haglund et al. 2016). Range capped at 50%.
 U_df <- data.frame(
   U_label    = c("Low-Prior",  "Low-Elevated",
                  "Mod-Prior",  "Mod-Elevated",
                  "High-Prior", "High-Elevated"),
-  U          = c(0.15, 0.20, 0.30, 0.40, 0.50, 0.60),
+  U          = c(0.15, 0.20, 0.30, 0.38, 0.44, 0.50),
   U_category = c("Low", "Low", "Moderate", "Moderate", "High", "High"),
   stringsAsFactors = FALSE
 )
@@ -81,7 +84,7 @@ scen1_Harvlim     <- 356
 scen1_enable_slot <- FALSE
 scen1_slot_type   <- "traditional"
 scen1_slot_upper  <- NA_real_
-scen1_DisMort     <- 0.10
+scen1_DisMort     <- 0.10   # conservative; Payer et al. 1989 (5-10%), Reeves and Bruesewitz 2007 (0-12%)
 
 # Scenario 2: Minimum length 457 mm (18 in.)
 # Conservative regulation used in trophy-focused or recovering stocks.
@@ -90,7 +93,7 @@ scen2_Harvlim     <- 457
 scen2_enable_slot <- FALSE
 scen2_slot_type   <- "traditional"
 scen2_slot_upper  <- NA_real_
-scen2_DisMort     <- 0.10
+scen2_DisMort     <- 0.10   # conservative; Payer et al. 1989 (5-10%), Reeves and Bruesewitz 2007 (0-12%)
 
 # Scenario 3: Protective slot 356–508 mm (14–20 in.)
 # Protects the quality class (14–20") from harvest; fish outside this range
@@ -101,7 +104,7 @@ scen3_Harvlim     <- 356
 scen3_enable_slot <- TRUE
 scen3_slot_type   <- "protective"
 scen3_slot_upper  <- 508
-scen3_DisMort     <- 0.10
+scen3_DisMort     <- 0.10   # conservative; Payer et al. 1989 (5-10%), Reeves and Bruesewitz 2007 (0-12%)
 
 # ── Scenario table ────────────────────────────────────────────────────────────
 scen_params <- data.frame(
