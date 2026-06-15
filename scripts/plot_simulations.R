@@ -122,7 +122,7 @@ make_species_plots <- function(cfg) {
     group_by(scenario, growth_preset, U, U_label, U_category) |>
     summarise(
       n          = n(),
-      # SPR (deterministic per-recruit ratio)
+      # SPR (egg production relative to unfished equilibrium)
       SPR_mean   = mean(SPR),
       SPR_med    = median(SPR),
       SPR_lo     = quantile(SPR, 0.25),
@@ -210,7 +210,7 @@ make_species_plots <- function(cfg) {
     mutate(U_facet = factor(paste0("U = ", U),
                             levels = paste0("U = ", sort(cfg$target_U))))
 
-  # ── Figure 4: SPR violins (deterministic per-recruit; tight) ────────────
+  # ── Figure 4: SPR violins (stochastic; spread from recruitment) ─────────
   p_violin_spr <- ggplot(violin_df,
                          aes(x = scenario, y = SPR,
                              fill = scenario, colour = scenario)) +

@@ -310,8 +310,7 @@ ui <- fluidPage(
                    tags$li(strong("YPR:"), "Yield Per Recruit (kg) - harvest per individual recruit"),
                    tags$li(strong("Total Yield:"), "Population-level harvest (YPR × Recruitment)"),
                    tags$li(strong("MSY:"), "Maximum Sustainable Yield and optimal exploitation rate (U_MSY)"),
-                   tags$li(strong("SPR:"), "Spawning Potential Ratio - deterministic per-recruit egg production fished vs. unfished (Walters & Martell incidence function; bounded ≤ 1)"),
-                   tags$li(strong("Rel. egg prod.:"), "Stochastic stock-level egg production relative to the unfished equilibrium; may exceed 1 in favourable recruitment years"),
+                   tags$li(strong("SPR:"), "Spawning Potential Ratio - stock egg production relative to the unfished equilibrium; values > 1 occur in favourable recruitment years"),
                    tags$li(strong("Equilibrium Recruitment:"), "Recruits at equilibrium under DDR"),
                    tags$li(strong("Population Structure:"), "Age and length distributions with 95% prediction intervals"),
                    tags$li(strong("Prop Memorable:"), "Proportion of trophy/quality-sized fish in population")
@@ -513,7 +512,6 @@ server <- function(input, output, session) {
           unc_list[[k]] <- data.frame(
             YPR                 = mean(df_k$YPR,                 na.rm = TRUE),
             SPR                 = mean(df_k$SPR,                 na.rm = TRUE),
-            RelEgg              = mean(df_k$RelEgg,              na.rm = TRUE),
             Prop                = mean(df_k$Prop,                na.rm = TRUE),
             MeanLengthHarvested = mean(df_k$MeanLengthHarvested, na.rm = TRUE),
             nat_mort = mort_samps$nat_mort[k],

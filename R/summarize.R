@@ -8,8 +8,7 @@
 #'
 #' @param sim_out The list returned by \code{\link{run_population_simulation}}
 #'   with full output (must contain \code{all_YPR}, \code{all_SPR},
-#'   \code{all_RelEgg}, \code{all_Prop}, \code{all_EggProd}, and
-#'   \code{burnin_years}).
+#'   \code{all_Prop}, \code{all_EggProd}, and \code{burnin_years}).
 #' @param Ymax Number of years simulated.
 #'
 #' @return A data.frame with one row per year, containing mean/sd/lower/upper
