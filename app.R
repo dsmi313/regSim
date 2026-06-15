@@ -702,31 +702,33 @@ server <- function(input, output, session) {
     yr_max  <- max(ts_data$Year)
 
     # When parameter uncertainty is on, unc_ts holds a per-year band pooling
-    # every parameter draw and its recruitment replicates (combined uncertainty),
-    # so the ribbon varies across years instead of being a flat rectangle.
+    # every parameter draw and its recruitment replicates. It is drawn as a
+    # wider OUTER band beneath the recruitment-only INNER band from the main
+    # simulation, so the two uncertainty sources stay visually distinct.
     unc    <- uncertainty_results()
     unc_ts <- uncertainty_ts_data()
     band_lbl <- if (!is.null(unc_ts))
-      "Band: parameter + recruitment uncertainty"
+      "Inner: recruitment PI | Outer: + parameter uncertainty"
     else
       "Band: 95% recruitment PI"
 
-    # Per-metric ribbon: combined per-year band when available, else the
-    # recruitment-only prediction interval from the main simulation.
-    band_geom <- function(lo_col, hi_col, fill, ts_lo, ts_hi) {
-      if (!is.null(unc_ts))
-        geom_ribbon(data = unc_ts,
-                    aes(x = Year, ymin = .data[[lo_col]], ymax = .data[[hi_col]]),
-                    inherit.aes = FALSE, alpha = 0.20, fill = fill)
-      else
-        geom_ribbon(aes(ymin = .data[[ts_lo]], ymax = .data[[ts_hi]]),
-                    alpha = 0.25, fill = fill)
+    # Inner ribbon = recruitment PI from ts_data; outer ribbon (when uncertainty
+    # is on) = combined per-year band from unc_ts, drawn first so it sits behind.
+    # Both data frames share the *_lower/*_upper column names.
+    band_geom <- function(lo_col, hi_col, fill) {
+      inner <- geom_ribbon(aes(ymin = .data[[lo_col]], ymax = .data[[hi_col]]),
+                           alpha = 0.30, fill = fill)
+      if (is.null(unc_ts)) return(inner)
+      outer <- geom_ribbon(data = unc_ts,
+                           aes(x = Year, ymin = .data[[lo_col]], ymax = .data[[hi_col]]),
+                           inherit.aes = FALSE, alpha = 0.15, fill = fill)
+      list(outer, inner)
     }
 
     p1 <- ggplot(ts_data, aes(x = Year, y = YPR_mean)) +
       annotate("rect", xmin = 1, xmax = burnin_years_plot, ymin = -Inf, ymax = Inf,
                fill = "gray", alpha = 0.2) +
-      band_geom("YPR_lower", "YPR_upper", "steelblue", "YPR_lower", "YPR_upper") +
+      band_geom("YPR_lower", "YPR_upper", "steelblue") +
       geom_line(color = "steelblue", size = 1) +
       geom_vline(xintercept = burnin_years_plot, linetype = "dotted", color = "gray40", alpha = 0.7) +
       labs(title = "YPR Over Time",
@@ -736,7 +738,7 @@ server <- function(input, output, session) {
     p2 <- ggplot(ts_data, aes(x = Year, y = SPR_mean)) +
       annotate("rect", xmin = 1, xmax = burnin_years_plot, ymin = -Inf, ymax = Inf,
                fill = "gray", alpha = 0.2) +
-      band_geom("SPR_lower", "SPR_upper", "darkgreen", "SPR_lower", "SPR_upper") +
+      band_geom("SPR_lower", "SPR_upper", "darkgreen") +
       geom_line(color = "darkgreen", size = 1) +
       geom_vline(xintercept = burnin_years_plot, linetype = "dotted", color = "gray40", alpha = 0.7) +
       geom_hline(yintercept = 0.40, linetype = "dashed", color = "orange", alpha = 0.7) +
@@ -749,7 +751,7 @@ server <- function(input, output, session) {
     p3 <- ggplot(ts_data, aes(x = Year, y = Prop_mean)) +
       annotate("rect", xmin = 1, xmax = burnin_years_plot, ymin = -Inf, ymax = Inf,
                fill = "gray", alpha = 0.2) +
-      band_geom("Prop_lower", "Prop_upper", "darkorange", "Prop_lower", "Prop_upper") +
+      band_geom("Prop_lower", "Prop_upper", "darkorange") +
       geom_line(color = "darkorange", size = 1) +
       geom_vline(xintercept = burnin_years_plot, linetype = "dotted", color = "gray40", alpha = 0.7) +
       labs(title = paste0("Proportion Memorable (≥", memorable_inches, "\") Over Time"),
@@ -759,7 +761,7 @@ server <- function(input, output, session) {
     p4 <- ggplot(ts_data, aes(x = Year, y = EggProd_mean)) +
       annotate("rect", xmin = 1, xmax = burnin_years_plot, ymin = -Inf, ymax = Inf,
                fill = "gray", alpha = 0.2) +
-      band_geom("EggProd_lower", "EggProd_upper", "purple", "EggProd_lower", "EggProd_upper") +
+      band_geom("EggProd_lower", "EggProd_upper", "purple") +
       geom_line(color = "purple", size = 1) +
       geom_vline(xintercept = burnin_years_plot, linetype = "dotted", color = "gray40", alpha = 0.7) +
       labs(title = "Total Egg Production Over Time",
@@ -772,7 +774,7 @@ server <- function(input, output, session) {
         title  = list(
           text    = paste0("Population Metrics Over Time<br>",
                            "<sup>Mean across ", input$nsim, " simulations",
-                           if (!is.null(unc_ts)) " | Band: parameter + recruitment uncertainty" else " with 95% prediction intervals",
+                           if (!is.null(unc_ts)) " | Inner: recruitment PI, Outer: + parameter uncertainty" else " with 95% prediction intervals",
                            "</sup>"),
           x       = 0.5,
           xanchor = "center"
