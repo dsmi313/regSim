@@ -190,6 +190,52 @@ sample_growth_parameters <- function(Linf, vbk, cv, n) {
 }
 
 
+#' Summarise parameter-uncertainty trajectories into per-year quantile bands
+#'
+#' Pools the full per-year time-series matrices from every parameter draw and
+#' computes a per-year median and 95\% quantile band for each metric. Unlike
+#' \code{\link{summarize_uncertainty_results}} (which collapses each draw to a
+#' single equilibrium scalar), this retains the year dimension so the band can
+#' be drawn as a ribbon that varies through burn-in and equilibrium.
+#'
+#' Each input list holds one \code{Ymax x nsim_inner} matrix per parameter draw
+#' (the \code{all_*} output of \code{\link{run_population_simulation}} run with
+#' \code{collect_full_output = TRUE}). All columns are pooled across parameter
+#' draws \emph{and} recruitment replicates, so the resulting band reflects
+#' combined parameter + recruitment uncertainty.
+#'
+#' @param ypr_list,spr_list,prop_list,egg_list Lists of \code{Ymax x nsim_inner}
+#'   matrices, one element per parameter draw.
+#' @param Ymax Number of years simulated.
+#'
+#' @return A data.frame with one row per year and \code{median}/\code{lower}/
+#'   \code{upper} columns for each metric (\code{YPR_*}, \code{SPR_*},
+#'   \code{Prop_*}, \code{EggProd_*}).
+#' @importFrom stats median quantile
+#' @export
+summarize_uncertainty_timeseries <- function(ypr_list, spr_list, prop_list,
+                                             egg_list, Ymax) {
+  band <- function(mat_list) {
+    pooled <- do.call(cbind, mat_list)  # Ymax x (ndraws * nsim_inner)
+    list(
+      med   = apply(pooled, 1, median,   na.rm = TRUE),
+      lower = apply(pooled, 1, quantile, probs = 0.025, na.rm = TRUE),
+      upper = apply(pooled, 1, quantile, probs = 0.975, na.rm = TRUE)
+    )
+  }
+  y <- band(ypr_list); s <- band(spr_list)
+  p <- band(prop_list); e <- band(egg_list)
+  data.frame(
+    Year          = seq_len(Ymax),
+    YPR_med       = y$med, YPR_lower     = y$lower, YPR_upper     = y$upper,
+    SPR_med       = s$med, SPR_lower     = s$lower, SPR_upper     = s$upper,
+    Prop_med      = p$med, Prop_lower    = p$lower, Prop_upper    = p$upper,
+    EggProd_med   = e$med, EggProd_lower = e$lower, EggProd_upper = e$upper,
+    row.names     = NULL
+  )
+}
+
+
 #' Summarise uncertainty simulation results
 #'
 #' Computes the median, 2.5th, and 97.5th percentiles for each key metric
