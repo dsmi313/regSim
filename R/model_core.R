@@ -192,10 +192,14 @@ make_vulnerability_curves <- function(bin_midpoints,
 #'   (e.g. to drive a Shiny progress bar).
 #'
 #' @return A list with \code{sim_df} (data.frame: \code{sim}, \code{YPR},
-#'   \code{SPR}, \code{Prop}, \code{MeanLengthHarvested}, \code{Recruit}) and
-#'   \code{burnin_years}. When \code{collect_full_output = TRUE}, also
-#'   \code{all_YPR}, \code{all_SPR}, \code{all_Prop}, \code{all_SSB},
-#'   \code{all_Abundance}, and \code{all_AgeAbundance}.
+#'   \code{SPR}, \code{RelEgg}, \code{Prop}, \code{MeanLengthHarvested},
+#'   \code{Recruit}) and \code{burnin_years}. \code{SPR} is the deterministic
+#'   per-recruit spawning potential ratio (Walters & Martell incidence
+#'   function, bounded \eqn{\le 1}); \code{RelEgg} is stochastic stock-level egg
+#'   production relative to the unfished equilibrium and may exceed 1 in
+#'   favourable recruitment years. When \code{collect_full_output = TRUE}, also
+#'   \code{all_YPR}, \code{all_SPR}, \code{all_RelEgg}, \code{all_Prop},
+#'   \code{all_EggProd}, \code{all_Abundance}, and \code{all_AgeAbundance}.
 #' @importFrom stats rlnorm
 #' @export
 run_population_simulation <- function(bin_midpoints, length_bins,
@@ -219,11 +223,30 @@ run_population_simulation <- function(bin_midpoints, length_bins,
   sigmaR       <- sqrt(log(rec_cv ^ 2 + 1))
   burnin_years <- min(Ymax, Amax + 20)
 
+  # --- Spawning potential ratio (deterministic incidence function) -----------
+  # Walters & Martell / Allen & Hightower per-recruit approach: trace one
+  # recruit through the fished vs. unfished life history, accumulating egg
+  # production (Fec_bins) at each age. Recruitment cancels, so
+  # SPR = phi_F / phi_0 is bounded <= 1 by construction (fishing only lowers
+  # survival). This depends solely on fixed inputs, so it is computed once.
+  pr_unfished <- recruit_dist
+  pr_fished   <- recruit_dist
+  phi_0 <- sum(pr_unfished * Fec_bins)
+  phi_F <- sum(pr_fished   * Fec_bins)
+  for (a in 2:Amax) {
+    pr_unfished <- as.vector(as.vector(pr_unfished * S_bins)        %*% Growth_matrix)
+    pr_fished   <- as.vector(as.vector(pr_fished   * Survival_bins) %*% Growth_matrix)
+    phi_0 <- phi_0 + sum(pr_unfished * Fec_bins)
+    phi_F <- phi_F + sum(pr_fished   * Fec_bins)
+  }
+  SPR_value <- phi_F / max(1e-12, phi_0)
+
   # --- Per-simulation output storage -----------------------------------------
   sim_df <- data.frame(
     sim                = seq_len(nsim),
     YPR                = rep(NA_real_, nsim),
     SPR                = rep(NA_real_, nsim),
+    RelEgg             = rep(NA_real_, nsim),
     Prop               = rep(NA_real_, nsim),
     MeanLengthHarvested = rep(NA_real_, nsim),
     Recruit            = rep(NA_real_, nsim)
@@ -232,8 +255,9 @@ run_population_simulation <- function(bin_midpoints, length_bins,
   if (collect_full_output) {
     all_YPR          <- matrix(NA_real_, Ymax, nsim)
     all_SPR          <- matrix(NA_real_, Ymax, nsim)
+    all_RelEgg       <- matrix(NA_real_, Ymax, nsim)
     all_Prop         <- matrix(NA_real_, Ymax, nsim)
-    all_SSB          <- matrix(NA_real_, Ymax, nsim)
+    all_EggProd      <- matrix(NA_real_, Ymax, nsim)
     all_Abundance    <- matrix(NA_real_, L_bins, nsim)
     all_AgeAbundance <- matrix(NA_real_, Amax,   nsim)
   }
@@ -242,21 +266,23 @@ run_population_simulation <- function(bin_midpoints, length_bins,
     if (!is.null(progress_fn)) progress_fn(k, nsim)
 
     # --- Per-replicate storage ------------------------------------------------
-    N                <- matrix(0, Ymax, L_bins)
-    age_len          <- matrix(0, Amax, L_bins)
-    age_len_unfished <- matrix(0, Amax, L_bins)
-    Yield            <- rep(NA_real_, Ymax)
-    SPRt             <- rep(NA_real_, Ymax)
-    SSBt_unfished    <- rep(NA_real_, Ymax)
-    YPR              <- rep(NA_real_, Ymax)
+    N       <- matrix(0, Ymax, L_bins)
+    age_len <- matrix(0, Amax, L_bins)
+    Yield   <- rep(NA_real_, Ymax)
+    SPRt    <- rep(NA_real_, Ymax)
+    RelEgg_t <- rep(NA_real_, Ymax)
+    YPR     <- rep(NA_real_, Ymax)
     Prop    <- rep(NA_real_, Ymax)
-    SSBt    <- rep(NA_real_, Ymax)
+    eggs_t  <- rep(NA_real_, Ymax)
 
     # --- Burn-in: build unfished equilibrium (no harvest) --------------------
+    # Deterministic (constant Ro) so the unfished egg-production reference
+    # converges to Ro * phi_0 exactly, giving a clean denominator for the
+    # relative-egg-production metric below.
     age_len[1, ] <- Ro * recruit_dist
     N[1, ]       <- colSums(age_len)
-    SSB_burnin   <- rep(NA_real_, burnin_years)
-    SSB_burnin[1] <- sum(N[1, ] * Fec_bins)
+    eggs_burnin  <- rep(NA_real_, burnin_years)
+    eggs_burnin[1] <- sum(N[1, ] * Fec_bins)
 
     for (init_year in 2:burnin_years) {
       age_survive <- age_len * matrix(S_bins, nrow = Amax, ncol = L_bins, byrow = TRUE)
@@ -264,16 +290,15 @@ run_population_simulation <- function(bin_midpoints, length_bins,
       for (a in 1:(Amax - 1)) {
         new_age_len[a + 1, ] <- as.vector(age_survive[a, ] %*% Growth_matrix)
       }
-      new_age_len[1, ] <- new_age_len[1, ] +
-        (Ro * rlnorm(1, 0, sd = sigmaR)) * recruit_dist
+      new_age_len[1, ] <- new_age_len[1, ] + Ro * recruit_dist
       age_len          <- new_age_len
       N[init_year, ]   <- colSums(age_len)
-      SSB_burnin[init_year] <- sum(N[init_year, ] * Fec_bins)
+      eggs_burnin[init_year] <- sum(N[init_year, ] * Fec_bins)
     }
 
-    # --- Unfished spawning biomass reference (denominator for SPR) -----------
+    # --- Unfished egg-production reference (denominator for relative eggs) ----
     burnin_start <- max(1L, burnin_years - 9L)
-    SPR_denom    <- mean(SSB_burnin[burnin_start:burnin_years], na.rm = TRUE)
+    SPR_denom    <- mean(eggs_burnin[burnin_start:burnin_years], na.rm = TRUE)
     SSB0         <- SPR_denom
 
     # --- Stochastic recruitment capacity for the fished period ---------------
@@ -287,26 +312,24 @@ run_population_simulation <- function(bin_midpoints, length_bins,
 
     # --- Annotate burn-in years (U = 0, no harvest) -------------------------
     for (yr in seq_len(burnin_years)) {
-      Yield[yr] <- 0
-      SSBt[yr]  <- sum(N[yr, ] * Fec_bins)
-      SPRt[yr]  <- SSBt[yr] / SPR_denom
-      YPR[yr]   <- 0
-      Prop[yr]  <- sum(trophyvul_bins * N[yr, ]) / max(1, sum(N[yr, ]))
+      Yield[yr]   <- 0
+      eggs_t[yr]  <- sum(N[yr, ] * Fec_bins)
+      RelEgg_t[yr] <- eggs_t[yr] / SPR_denom
+      SPRt[yr]    <- 1.0   # unfished during burn-in (U = 0)
+      YPR[yr]     <- 0
+      Prop[yr]    <- sum(trophyvul_bins * N[yr, ]) / max(1, sum(N[yr, ]))
     }
-
-    # --- Snapshot unfished equilibrium for shadow population -----------------
-    age_len_unfished <- age_len
 
     # --- Fished simulation years ---------------------------------------------
     start_year <- min(burnin_years + 1L, Ymax)
     for (i in start_year:Ymax) {
       if (isTRUE(enable_ddr)) {
-        SSB_t <- max(0, sum(N[i - 1, ] * Fec_bins))
-        R_BH  <- (4 * steepness * Ro * SSB_t) /
-                 (SSB0 * (1 - steepness) + (5 * steepness - 1) * SSB_t)
+        eggs_prev <- max(0, sum(N[i - 1, ] * Fec_bins))
+        R_BH  <- (4 * steepness * Ro * eggs_prev) /
+                 (SSB0 * (1 - steepness) + (5 * steepness - 1) * eggs_prev)
         R_BH  <- max(1, R_BH)
-        if (isTRUE(enable_depensation) && SSB_t < 0.2 * SSB0) {
-          R_BH <- R_BH * (SSB_t / (0.2 * SSB0)) ^ 2
+        if (isTRUE(enable_depensation) && eggs_prev < 0.2 * SSB0) {
+          R_BH <- R_BH * (eggs_prev / (0.2 * SSB0)) ^ 2
         }
         Rcapacity[i] <- if (rec_cv == 0) max(1, R_BH) else
           max(1, R_BH * rlnorm(1, 0, sd = sigmaR))
@@ -322,27 +345,22 @@ run_population_simulation <- function(bin_midpoints, length_bins,
       age_len          <- new_age_len
       N[i, ]           <- colSums(age_len)
       Yield[i]         <- sum(Wt_bins * Vulharv_bins * N[i, ]) * U
-      SSBt[i]          <- sum(N[i, ] * Fec_bins)
+      eggs_t[i]        <- sum(N[i, ] * Fec_bins)
       YPR[i]           <- Yield[i] / max(1, Rcapacity[i])
 
-      # Advance unfished shadow population (same Rcapacity, natural survival only)
-      age_survive_u <- age_len_unfished *
-        matrix(S_bins, nrow = Amax, ncol = L_bins, byrow = TRUE)
-      new_age_len_u <- matrix(0, Amax, L_bins)
-      for (a in 1:(Amax - 1)) {
-        new_age_len_u[a + 1, ] <- as.vector(age_survive_u[a, ] %*% Growth_matrix)
-      }
-      new_age_len_u[1, ] <- new_age_len_u[1, ] + Rcapacity[i] * recruit_dist
-      age_len_unfished   <- new_age_len_u
-      SSBt_unfished[i]   <- sum(colSums(age_len_unfished) * Fec_bins)
-      SPRt[i]            <- SSBt[i] / max(1e-12, SSBt_unfished[i])
+      # SPR is the deterministic per-recruit value (constant across years);
+      # RelEgg is the stochastic stock-level egg production relative to the
+      # unfished equilibrium and can exceed 1 in favourable recruitment years.
+      SPRt[i]          <- SPR_value
+      RelEgg_t[i]      <- eggs_t[i] / SPR_denom
       Prop[i]          <- sum(trophyvul_bins * N[i, ]) / max(1, sum(N[i, ]))
     }
 
     # --- Summarise last 50 fished years into sim_df row ----------------------
     last_50_start <- max(start_year, Ymax - 49L)
     idx           <- last_50_start:Ymax
-    sim_df$SPR[k]     <- mean(SPRt[idx],     na.rm = TRUE)
+    sim_df$SPR[k]     <- SPR_value
+    sim_df$RelEgg[k]  <- mean(RelEgg_t[idx], na.rm = TRUE)
     sim_df$YPR[k]     <- mean(YPR[idx],      na.rm = TRUE)
     sim_df$Prop[k]    <- mean(Prop[idx],     na.rm = TRUE)
     sim_df$Recruit[k] <- mean(Rcapacity[idx], na.rm = TRUE)
@@ -357,8 +375,9 @@ run_population_simulation <- function(bin_midpoints, length_bins,
     if (collect_full_output) {
       all_YPR[, k]          <- YPR
       all_SPR[, k]          <- SPRt
+      all_RelEgg[, k]       <- RelEgg_t
       all_Prop[, k]         <- Prop
-      all_SSB[, k]          <- SSBt
+      all_EggProd[, k]      <- eggs_t
       all_Abundance[, k]    <- N[Ymax, ]
       all_AgeAbundance[, k] <- rowSums(age_len)
     }
@@ -368,8 +387,9 @@ run_population_simulation <- function(bin_midpoints, length_bins,
   if (collect_full_output) {
     out$all_YPR          <- all_YPR
     out$all_SPR          <- all_SPR
+    out$all_RelEgg       <- all_RelEgg
     out$all_Prop         <- all_Prop
-    out$all_SSB          <- all_SSB
+    out$all_EggProd      <- all_EggProd
     out$all_Abundance    <- all_Abundance
     out$all_AgeAbundance <- all_AgeAbundance
   }
