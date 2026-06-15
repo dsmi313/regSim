@@ -307,7 +307,7 @@ run_population_simulation <- function(bin_midpoints, length_bins,
     } else if (rec_cv == 0) {
       Rcapacity <- rep(Ro, Ymax)
     } else {
-      Rcapacity <- Ro * rlnorm(Ymax, 0, sd = sigmaR)
+      Rcapacity <- Ro * rlnorm(Ymax, meanlog = -0.5 * sigmaR^2, sd = sigmaR)
     }
 
     # --- Annotate burn-in years (U = 0, no harvest) -------------------------

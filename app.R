@@ -659,7 +659,7 @@ server <- function(input, output, session) {
            subtitle = paste0(
              if (!is.null(sub)) paste0(sub, " | ") else "",
              sprintf("Dashed: unfished (1.0) | Dotted blue: per-recruit SPR = %.2f", spr_ref)),
-           x = "", y = "Eggs relative to unfished") +
+           x = "", y = "Rel. egg prod.") +
       theme_minimal() +
       theme(axis.text.x = element_blank())
     ggplotly(p)
@@ -762,7 +762,7 @@ server <- function(input, output, session) {
       geom_hline(yintercept = 0.2, linetype = "dashed", color = "red",    alpha = 0.7) +
       labs(title = "Relative Egg Production Over Time",
            subtitle = "Eggs relative to unfished equilibrium (1.0) | Dashed red: 20% depensation threshold | Gray: burn-in",
-           x = "Year", y = "Eggs relative to unfished") +
+           x = "Year", y = "Rel. egg prod.") +
       theme_minimal()
     subplot(ggplotly(p1), ggplotly(p2), ggplotly(p3), ggplotly(p4),
             nrows = 4, shareX = TRUE, titleY = TRUE) %>%
