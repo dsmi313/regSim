@@ -125,7 +125,7 @@ test_that("run_population_simulation returns expected structure (full output)", 
                  c(inp, collect_full_output = TRUE))
 
   expect_named(out, c("sim_df", "burnin_years",
-                      "all_YPR", "all_SPR", "all_Prop", "all_SSB",
+                      "all_YPR", "all_SPR", "all_RelEgg", "all_Prop", "all_EggProd",
                       "all_Abundance", "all_AgeAbundance"),
                ignore.order = TRUE)
   expect_equal(nrow(out$sim_df), inp$nsim)
@@ -133,18 +133,29 @@ test_that("run_population_simulation returns expected structure (full output)", 
   expect_equal(nrow(out$all_YPR), inp$Ymax)
 })
 
-test_that("run_population_simulation SPR is non-negative and averages at or below 1", {
+test_that("run_population_simulation SPR is deterministic and bounded in [0, 1]", {
   set.seed(2)
   out <- do.call(run_population_simulation, c(make_wc_inputs(), collect_full_output = FALSE))
   spr <- out$sim_df$SPR
-  # SPR = fished SSB / unfished SSB. The unfished denominator is a 10-year
-  # stochastic mean and recruitment is lognormal (rec_cv = 0.8), so an
-  # individual simulation's SPR can land just above 1 by chance. The guaranteed
-  # invariants are that every draw is finite and non-negative; fishing keeps the
-  # across-simulation mean at or below the unfished reference of 1.
+  # SPR is now the per-recruit incidence-function ratio phi_F / phi_0
+  # (Walters & Martell). Fishing only lowers survival, so it is bounded <= 1
+  # by construction for every draw, and it does not depend on the stochastic
+  # recruitment draws, so it is identical across replicates.
   expect_true(all(is.finite(spr)))
   expect_true(all(spr >= 0))
-  expect_lte(mean(spr), 1)
+  expect_true(all(spr <= 1 + 1e-8))
+  expect_lt(diff(range(spr)), 1e-8)
+})
+
+test_that("run_population_simulation RelEgg is non-negative and may exceed 1", {
+  set.seed(2)
+  out <- do.call(run_population_simulation, c(make_wc_inputs(), collect_full_output = FALSE))
+  rel <- out$sim_df$RelEgg
+  # RelEgg = stock-level egg production relative to the unfished equilibrium.
+  # It is stochastic (lognormal recruitment) and can legitimately exceed 1 in
+  # favourable recruitment years; the guaranteed invariant is non-negativity.
+  expect_true(all(is.finite(rel)))
+  expect_true(all(rel >= 0))
 })
 
 test_that("run_population_simulation YPR is non-negative", {

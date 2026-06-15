@@ -146,6 +146,7 @@ run_uncertainty_simulation <- function(nat_mort, U, DisMort, cv, nsim,
     results[[k]] <- data.frame(
       YPR                 = mean(df_k$YPR,                 na.rm = TRUE),
       SPR                 = mean(df_k$SPR,                 na.rm = TRUE),
+      RelEgg              = mean(df_k$RelEgg,              na.rm = TRUE),
       Prop                = mean(df_k$Prop,                na.rm = TRUE),
       MeanLengthHarvested = mean(df_k$MeanLengthHarvested, na.rm = TRUE),
       nat_mort            = p$nat_mort,
@@ -203,7 +204,7 @@ sample_growth_parameters <- function(Linf, vbk, cv, n) {
 #' @importFrom stats median quantile
 #' @export
 summarize_uncertainty_results <- function(results_df) {
-  metrics <- c("YPR", "SPR", "Prop")
+  metrics <- c("YPR", "SPR", "RelEgg", "Prop")
   rows <- lapply(metrics, function(m) {
     x <- results_df[[m]]
     data.frame(
