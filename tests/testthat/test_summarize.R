@@ -3,7 +3,6 @@ make_fake_sim_out <- function(Ymax = 5, nsim = 4, L_bins = 3, Amax = 2) {
   list(
     all_YPR          = matrix(seq_len(Ymax * nsim), Ymax, nsim),
     all_SPR          = matrix(seq_len(Ymax * nsim) / 100, Ymax, nsim),
-    all_RelEgg       = matrix(seq_len(Ymax * nsim) / 50, Ymax, nsim),
     all_Prop         = matrix(seq_len(Ymax * nsim) / (Ymax * nsim), Ymax, nsim),
     all_EggProd      = matrix(seq_len(Ymax * nsim) * 10, Ymax, nsim),
     all_Abundance    = matrix(seq_len(L_bins * nsim), L_bins, nsim),
@@ -28,7 +27,7 @@ test_that("summarize_timeseries returns one row per year with expected columns",
   ts <- summarize_timeseries(s, Ymax = 5)
   expect_equal(nrow(ts), 5)
   expect_true(all(c("YPR_mean", "YPR_lower", "YPR_upper",
-                    "SPR_mean", "RelEgg_mean", "Prop_upper", "EggProd_lower",
+                    "SPR_mean", "SPR_lower", "Prop_upper", "EggProd_lower",
                     "burnin_years") %in% names(ts)))
 })
 

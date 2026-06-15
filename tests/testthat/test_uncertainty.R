@@ -51,13 +51,12 @@ test_that("summarize_uncertainty_results returns required columns and row count"
   fake <- data.frame(
     YPR                 = runif(100, 0.01, 0.10),
     SPR                 = runif(100, 0.20, 0.80),
-    RelEgg              = runif(100, 0.20, 1.20),
     Prop                = runif(100, 0.00, 0.30),
     MeanLengthHarvested = runif(100, 200,  350)
   )
   summ <- summarize_uncertainty_results(fake)
   expect_true(all(c("metric", "median", "lower95", "upper95") %in% names(summ)))
-  expect_equal(nrow(summ), 5)
+  expect_equal(nrow(summ), 4)
   expect_true(all(summ$lower95 <= summ$median))
   expect_true(all(summ$median  <= summ$upper95))
 })

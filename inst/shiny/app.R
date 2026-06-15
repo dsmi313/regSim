@@ -308,7 +308,7 @@ ui <- fluidPage(
                    tags$li(strong("Total Yield:"), "Population-level harvest (YPR × Recruitment)"),
                    tags$li(strong("MSY:"), "Maximum Sustainable Yield and optimal exploitation rate (U_MSY)"),
                    tags$li(strong("SPR:"), "Spawning Potential Ratio - deterministic per-recruit egg production fished vs. unfished (Walters & Martell incidence function; bounded ≤ 1)"),
-                   tags$li(strong("Rel. egg prod.:"), "Stochastic stock-level egg production relative to the unfished equilibrium; may exceed 1 in favourable recruitment years"),
+                   tags$li(strong("SPR:"), "Stock egg production relative to the unfished equilibrium; values > 1 occur in favourable recruitment years"),
                    tags$li(strong("Equilibrium Recruitment:"), "Recruits at equilibrium under DDR"),
                    tags$li(strong("Population Structure:"), "Age and length distributions with 95% prediction intervals"),
                    tags$li(strong("Prop Memorable:"), "Proportion of trophy/quality-sized fish in population")
@@ -510,7 +510,6 @@ server <- function(input, output, session) {
           unc_list[[k]] <- data.frame(
             YPR                 = mean(df_k$YPR,                 na.rm = TRUE),
             SPR                 = mean(df_k$SPR,                 na.rm = TRUE),
-            RelEgg              = mean(df_k$RelEgg,              na.rm = TRUE),
             Prop                = mean(df_k$Prop,                na.rm = TRUE),
             MeanLengthHarvested = mean(df_k$MeanLengthHarvested, na.rm = TRUE),
             nat_mort = mort_samps$nat_mort[k],
@@ -560,11 +559,9 @@ server <- function(input, output, session) {
       cat(sprintf("  YPR:              %.4f ± %.4f kg\n",
                   mean(results$YPR, na.rm = TRUE),
                   sd(results$YPR, na.rm = TRUE)))
-      cat(sprintf("  SPR (per-recruit): %.4f\n",
-                  mean(results$SPR, na.rm = TRUE)))
-      cat(sprintf("  Rel. egg prod.:   %.4f ± %.4f\n",
-                  mean(results$RelEgg, na.rm = TRUE),
-                  sd(results$RelEgg, na.rm = TRUE)))
+      cat(sprintf("  SPR:              %.4f ± %.4f\n",
+                  mean(results$SPR, na.rm = TRUE),
+                  sd(results$SPR, na.rm = TRUE)))
       mean_length_mm <- mean(results$MeanLengthHarvested, na.rm = TRUE)
       mean_length_inches <- mean_length_mm / 25.4
       cat(sprintf("  Mean Length Harvested: %.1f\" (%.0f mm)\n",
@@ -585,17 +582,14 @@ server <- function(input, output, session) {
       )
       cat(sprintf("Results with %s uncertainty (median [95%% interval]):\n",
                   paste(unc_parts, collapse = " + ")))
-      ypr_row    <- unc_summary[unc_summary$metric == "YPR",                 ]
-      spr_row    <- unc_summary[unc_summary$metric == "SPR",                 ]
-      relegg_row <- unc_summary[unc_summary$metric == "RelEgg",              ]
-      prop_row   <- unc_summary[unc_summary$metric == "Prop",                ]
-      mln_row    <- unc_summary[unc_summary$metric == "MeanLengthHarvested", ]
+      ypr_row  <- unc_summary[unc_summary$metric == "YPR",                 ]
+      spr_row  <- unc_summary[unc_summary$metric == "SPR",                 ]
+      prop_row <- unc_summary[unc_summary$metric == "Prop",                ]
+      mln_row  <- unc_summary[unc_summary$metric == "MeanLengthHarvested", ]
       cat(sprintf("  YPR:              %.4f [%.4f, %.4f] kg\n",
                   ypr_row$median, ypr_row$lower95, ypr_row$upper95))
-      cat(sprintf("  SPR (per-recruit): %.4f [%.4f, %.4f]\n",
+      cat(sprintf("  SPR:              %.4f [%.4f, %.4f]\n",
                   spr_row$median, spr_row$lower95, spr_row$upper95))
-      cat(sprintf("  Rel. egg prod.:   %.4f [%.4f, %.4f]\n",
-                  relegg_row$median, relegg_row$lower95, relegg_row$upper95))
       mln_vals   <- c(mln_row$median, mln_row$lower95, mln_row$upper95)
       mln_inches <- mln_vals / 25.4
       cat(sprintf("  Mean Length Harvested: %.1f\" [%.1f\", %.1f\"] (%.0f [%.0f, %.0f] mm)\n",
@@ -645,18 +639,17 @@ server <- function(input, output, session) {
       )
       paste0("Distribution across ", paste(unc_parts, collapse = " + "), " uncertainty")
     } else NULL
-    spr_ref <- mean(plot_data$SPR, na.rm = TRUE)
-    p <- ggplot(plot_data, aes(x = "", y = RelEgg)) +
+    p <- ggplot(plot_data, aes(x = "", y = SPR)) +
       geom_violin(fill = "darkgreen", alpha = 0.7, color = "black") +
       geom_boxplot(width = 0.1, fill = "white", alpha = 0.5) +
       stat_summary(fun = mean, geom = "point", color = "red", size = 3) +
       geom_hline(yintercept = 1, linetype = "dashed", color = "gray40", alpha = 0.8) +
-      geom_hline(yintercept = spr_ref, linetype = "dotted", color = "blue", alpha = 0.8) +
-      labs(title = "Relative Egg Production Distribution",
+      geom_hline(yintercept = 0.3, linetype = "dotted", color = "red", alpha = 0.8) +
+      labs(title = "SPR Distribution",
            subtitle = paste0(
              if (!is.null(sub)) paste0(sub, " | ") else "",
-             sprintf("Dashed: unfished (1.0) | Dotted blue: per-recruit SPR = %.2f", spr_ref)),
-           x = "", y = "Rel. egg prod.") +
+             "Dashed = unfished reference (1.0) | Dotted = 30% threshold"),
+           x = "", y = "Spawning potential ratio (SPR)") +
       theme_minimal() +
       theme(axis.text.x = element_blank())
     ggplotly(p)
@@ -748,18 +741,16 @@ server <- function(input, output, session) {
            subtitle = paste0("Inner band: recruitment noise", unc_sub),
            x = "", y = "Proportion") +
       theme_minimal()
-    p4 <- ggplot(ts_data, aes(x = Year, y = RelEgg_mean)) +
+    p4 <- ggplot(ts_data, aes(x = Year, y = EggProd_mean)) +
       annotate("rect", xmin = 1, xmax = burnin_years_plot, ymin = -Inf, ymax = Inf,
                fill = "gray", alpha = 0.2) +
-      geom_ribbon(aes(ymin = RelEgg_lower, ymax = RelEgg_upper),
+      geom_ribbon(aes(ymin = EggProd_lower, ymax = EggProd_upper),
                   alpha = 0.2, fill = "purple") +
       geom_line(color = "purple", size = 1) +
       geom_vline(xintercept = burnin_years_plot, linetype = "dotted", color = "gray40", alpha = 0.7) +
-      geom_hline(yintercept = 1.0, linetype = "solid",  color = "gray40", alpha = 0.6) +
-      geom_hline(yintercept = 0.2, linetype = "dashed", color = "red",    alpha = 0.7) +
-      labs(title = "Relative Egg Production Over Time",
-           subtitle = "Eggs relative to unfished equilibrium (1.0) | Dashed red: 20% depensation threshold | Gray: burn-in",
-           x = "Year", y = "Rel. egg prod.") +
+      labs(title = "Total Egg Production Over Time",
+           subtitle = paste0("Absolute egg output | Gray: burn-in", unc_sub),
+           x = "Year", y = "Egg production") +
       theme_minimal()
     subplot(ggplotly(p1), ggplotly(p2), ggplotly(p3), ggplotly(p4),
             nrows = 4, shareX = TRUE, titleY = TRUE) %>%

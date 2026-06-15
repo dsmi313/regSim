@@ -23,8 +23,6 @@ summarize_timeseries <- function(sim_out, Ymax) {
     YPR_sd    = apply(sim_out$all_YPR,  1, sd, na.rm = TRUE),
     SPR_mean  = rowMeans(sim_out$all_SPR,  na.rm = TRUE),
     SPR_sd    = apply(sim_out$all_SPR,  1, sd, na.rm = TRUE),
-    RelEgg_mean = rowMeans(sim_out$all_RelEgg, na.rm = TRUE),
-    RelEgg_sd   = apply(sim_out$all_RelEgg, 1, sd, na.rm = TRUE),
     Prop_mean = rowMeans(sim_out$all_Prop, na.rm = TRUE),
     Prop_sd   = apply(sim_out$all_Prop, 1, sd, na.rm = TRUE),
     EggProd_mean = rowMeans(sim_out$all_EggProd, na.rm = TRUE),
@@ -35,8 +33,6 @@ summarize_timeseries <- function(sim_out, Ymax) {
   ts_data$YPR_upper  <- ts_data$YPR_mean  + 1.96 * ts_data$YPR_sd
   ts_data$SPR_lower  <- pmax(0, ts_data$SPR_mean  - 1.96 * ts_data$SPR_sd)
   ts_data$SPR_upper  <- ts_data$SPR_mean  + 1.96 * ts_data$SPR_sd
-  ts_data$RelEgg_lower <- pmax(0, ts_data$RelEgg_mean - 1.96 * ts_data$RelEgg_sd)
-  ts_data$RelEgg_upper <- ts_data$RelEgg_mean + 1.96 * ts_data$RelEgg_sd
   ts_data$Prop_lower <- pmax(0, ts_data$Prop_mean - 1.96 * ts_data$Prop_sd)
   ts_data$Prop_upper <- pmin(1, ts_data$Prop_mean + 1.96 * ts_data$Prop_sd)
   ts_data$EggProd_lower <- pmax(0, ts_data$EggProd_mean - 1.96 * ts_data$EggProd_sd)

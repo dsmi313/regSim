@@ -11,7 +11,7 @@
 #   1. Run the sim scripts (or readRDS) so the three .rds files exist.
 #   2. Source this file.
 #   3. Plots for all species live in the `plots` list, keyed by species:
-#        plots$crappie$p_violin_relegg
+#        plots$crappie$p_violin_spr
 #        plots$walleye$p_spr
 #        plots$lmb$p_tradeoff
 #   4. Set save_plots <- TRUE to write every figure to scripts/ as PNG.
@@ -141,13 +141,6 @@ make_species_plots <- function(cfg) {
       Prop_med   = median(Prop),
       Prop_lo    = quantile(Prop, 0.25),
       Prop_hi    = quantile(Prop, 0.75),
-      # Relative egg production (stochastic; can exceed 1)
-      RelEgg_mean = mean(RelEgg),
-      RelEgg_med  = median(RelEgg),
-      RelEgg_lo   = quantile(RelEgg, 0.25),
-      RelEgg_hi   = quantile(RelEgg, 0.75),
-      RelEgg_p05  = quantile(RelEgg, 0.05),
-      RelEgg_p95  = quantile(RelEgg, 0.95),
       # Mean harvested length
       MHL_mean   = mean(MeanLengthHarvested),
       MHL_lo     = quantile(MeanLengthHarvested, 0.25),
@@ -177,12 +170,11 @@ make_species_plots <- function(cfg) {
     scale_x_continuous(labels = scales::percent_format()) +
     scale_colour_manual(values = cfg$scen_colors, name = "Regulation") +
     scale_fill_manual(  values = cfg$scen_colors, name = "Regulation") +
-    scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, 0.2),
-                       labels = scales::percent_format()) +
+    scale_y_continuous(labels = scales::percent_format()) +
     labs(title = cfg$label,
          x = "Exploitation rate (U)",
          y = "Spawning potential ratio (SPR)",
-         caption = "Ribbon = interquartile range across replicates. Dashed = 30% SPR.") +
+         caption = "Ribbon = interquartile range across replicates. Dashed = 30% SPR threshold.") +
     base_theme
 
   # ── Figure 2: YPR vs. exploitation rate ─────────────────────────────────
@@ -196,25 +188,6 @@ make_species_plots <- function(cfg) {
     scale_fill_manual(  values = cfg$scen_colors, name = "Regulation") +
     labs(title = cfg$label,
          x = "Exploitation rate (U)", y = "Yield per recruit (YPR)") +
-    base_theme
-
-  # ── Figure 2b: Relative egg production vs. exploitation rate ─────────────
-  # Same style as the SPR trend, but for the stochastic stock-level metric.
-  # Ribbon = IQR across replicates; dashed line = unfished reference (1.0).
-  p_relegg <- ggplot(summary_df, aes(x = U, colour = scenario, fill = scenario)) +
-    geom_ribbon(aes(ymin = RelEgg_lo, ymax = RelEgg_hi), alpha = 0.20, colour = NA) +
-    geom_line(aes(y = RelEgg_mean), linewidth = 0.9) +
-    geom_hline(yintercept = 1.0, linetype = "dashed",
-               colour = "grey40", linewidth = 0.6) +
-    facet_wrap(~ growth_preset, ncol = 3,
-               labeller = labeller(growth_preset = growth_lab)) +
-    scale_x_continuous(labels = scales::percent_format()) +
-    scale_colour_manual(values = cfg$scen_colors, name = "Regulation") +
-    scale_fill_manual(  values = cfg$scen_colors, name = "Regulation") +
-    labs(title = cfg$label,
-         x = "Exploitation rate (U)",
-         y = "Relative egg production (RelEgg)",
-         caption = "Ribbon = interquartile range across replicates. Dashed = unfished reference (1.0).") +
     base_theme
 
   # ── Figure 3: Trophy proportion vs. exploitation rate ───────────────────
@@ -271,24 +244,6 @@ make_species_plots <- function(cfg) {
                            " | Violin = replicates | Box = IQR")) +
     violin_theme
 
-  # ── Figure 4c: RelEgg violins (stochastic; may exceed 1) ────────────────
-  p_violin_relegg <- ggplot(violin_df,
-                            aes(x = scenario, y = RelEgg,
-                                fill = scenario, colour = scenario)) +
-    geom_violin(alpha = 0.35, linewidth = 0.3, trim = TRUE) +
-    geom_boxplot(width = 0.08, alpha = 0.80, outlier.shape = NA,
-                 colour = "grey20", linewidth = 0.4) +
-    geom_hline(yintercept = 1.0, linetype = "dashed",
-               colour = "grey40", linewidth = 0.6) +
-    facet_wrap(~ U_facet, ncol = 3) +
-    scale_fill_manual(  values = cfg$scen_colors, name = "Regulation") +
-    scale_colour_manual(values = cfg$scen_colors, name = "Regulation") +
-    labs(title = cfg$label, x = NULL,
-         y = "Relative egg production (RelEgg)",
-         subtitle = paste0("Growth preset: ", cfg$growth_filter,
-                           " | Box = IQR | Dashed = unfished reference (1.0)")) +
-    violin_theme
-
   # ── Figure 5: Mean SPR heat map ─────────────────────────────────────────
   heat_df <- sim_df |>
     group_by(scenario, growth_preset, U_category) |>
@@ -331,16 +286,14 @@ make_species_plots <- function(cfg) {
     theme(legend.position = "right", legend.box = "vertical")
 
   list(
-    summary_df      = summary_df,
-    p_spr           = p_spr,
-    p_relegg        = p_relegg,
-    p_ypr           = p_ypr,
-    p_trophy        = p_trophy,
-    p_violin_spr    = p_violin_spr,
-    p_violin_ypr    = p_violin_ypr,
-    p_violin_relegg = p_violin_relegg,
-    p_heat          = p_heat,
-    p_tradeoff      = p_tradeoff
+    summary_df   = summary_df,
+    p_spr        = p_spr,
+    p_ypr        = p_ypr,
+    p_trophy     = p_trophy,
+    p_violin_spr = p_violin_spr,
+    p_violin_ypr = p_violin_ypr,
+    p_heat       = p_heat,
+    p_tradeoff   = p_tradeoff
   )
 }
 
@@ -370,9 +323,9 @@ for (sp_key in names(species_config)) {
 # ===========================================================================
 
 plot_dims <- list(
-  p_spr           = c(8, 4), p_relegg     = c(8, 4), p_ypr        = c(8, 4),
-  p_trophy        = c(8, 4), p_violin_spr = c(8, 5), p_violin_ypr = c(8, 5),
-  p_violin_relegg = c(8, 5), p_heat       = c(8, 4), p_tradeoff   = c(6, 5)
+  p_spr        = c(8, 4), p_ypr        = c(8, 4), p_trophy     = c(8, 4),
+  p_violin_spr = c(8, 5), p_violin_ypr = c(8, 5),
+  p_heat       = c(8, 4), p_tradeoff   = c(6, 5)
 )
 
 for (sp_key in names(plots)) {
@@ -390,5 +343,5 @@ for (sp_key in names(plots)) {
 }
 
 cat("\nBuilt species:", paste(names(plots), collapse = ", "), "\n")
-cat("Access plots via e.g. plots$crappie$p_violin_relegg\n")
+cat("Access plots via e.g. plots$crappie$p_violin_spr\n")
 cat("Summary tables via e.g. plots$crappie$summary_df\n")
