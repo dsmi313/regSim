@@ -12,10 +12,11 @@
 #   von Bertalanffy models for estimating walleye Stizostedion vitreum growth.
 #   North American Journal of Fisheries Management 14:561-572.
 #
-# Exploitation rates span documented walleye fisheries (typically 14-39%;
-# Isermann and Knight 2005, North American Journal of Fisheries Management;
-# Haglund et al. 2016, NAJFM 36:1315-1324; average ~34% at Escanaba Lake
-# before harvest elimination). Upper range represents heavily exploited systems.
+# Exploitation rates span documented walleye fisheries. Exploitation typically
+# averages 20-30% (Colby et al. 1979; 17.5-26.8% at Escanaba Lake, Wisconsin);
+# Haglund, Isermann, and Sass (2016, NAJFM 36:1315-1324) reported an average of
+# ~34% at Escanaba Lake over several decades before harvest elimination.
+# Upper range represents heavily exploited systems.
 #
 # DisMort = 0.10: Payer et al. (1989, NAJFM 9:188-192) reported 5-10%
 # hooking mortality for walleye on artificial lures and leeches respectively.
@@ -62,10 +63,10 @@ growth_slow     <- get_growth_preset("walleye", "slow")
 growth_moderate <- get_growth_preset("walleye", "moderate")
 growth_fast     <- get_growth_preset("walleye", "fast")
 
-# ── Exploitation rates — Isermann & Knight 2005; Haglund et al. 2016 ─────────
+# ── Exploitation rates — Colby et al. 1979; Haglund et al. 2016 ──────────────
 # Prior and elevated estimates at low / moderate / high effort.
-# Tagged populations: 14-39% (Isermann and Knight 2005, Grand River, OH);
-# Escanaba Lake long-term mean ~34% (Haglund et al. 2016). Range capped at 50%.
+# Typical exploitation 20-30% (Colby et al. 1979; 17.5-26.8% at Escanaba Lake);
+# long-term Escanaba mean ~34% (Haglund et al. 2016). Range capped at 50%.
 U_df <- data.frame(
   U_label    = c("Low-Prior",  "Low-Elevated",
                  "Mod-Prior",  "Mod-Elevated",
