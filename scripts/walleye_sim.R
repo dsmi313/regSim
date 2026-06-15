@@ -68,11 +68,9 @@ growth_fast     <- get_growth_preset("walleye", "fast")
 # Typical exploitation 20-30% (Colby et al. 1979; 17.5-26.8% at Escanaba Lake);
 # long-term Escanaba mean ~34% (Haglund et al. 2016). Range capped at 50%.
 U_df <- data.frame(
-  U_label    = c("Low-Prior",  "Low-Elevated",
-                 "Mod-Prior",  "Mod-Elevated",
-                 "High-Prior", "High-Elevated"),
-  U          = c(0.15, 0.20, 0.30, 0.38, 0.44, 0.50),
-  U_category = c("Low", "Low", "Moderate", "Moderate", "High", "High"),
+  U_label    = c("Low", "Moderate", "High"),
+  U          = c(0.15,  0.30,       0.50),
+  U_category = c("Low", "Moderate", "High"),
   stringsAsFactors = FALSE
 )
 
@@ -123,7 +121,7 @@ scen_params <- data.frame(
 
 growth_labels <- c("slow", "moderate", "fast")
 
-# Full crossing: 3 scenarios × 3 growth × 6 U = 54 combinations
+# Full crossing: 3 scenarios × 3 growth × 3 U = 27 combinations
 combos <- merge(
   merge(scen_params,
         data.frame(growth_preset = growth_labels, stringsAsFactors = FALSE),
@@ -134,10 +132,10 @@ combos <- merge(
 combos <- combos[order(combos$scenario, combos$growth_preset, combos$U), ]
 rownames(combos) <- NULL
 
-n_combos <- nrow(combos)  # 54
+n_combos <- nrow(combos)  # 27
 
 cat("Walleye simulation\n")
-cat("  Combinations :", n_combos, "(3 scenarios x 3 growth x 6 U)\n")
+cat("  Combinations :", n_combos, "(3 scenarios x 3 growth x 3 U)\n")
 cat("  Replicates   :", nsim, "per combination\n")
 cat("  Total ticks  :", n_combos * nsim, "\n\n")
 

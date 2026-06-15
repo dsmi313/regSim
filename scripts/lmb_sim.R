@@ -73,11 +73,9 @@ growth_fast     <- get_growth_preset("lmb", "fast")
 # increased (Allen et al. 2008, NAJFM 28:418-427). Range spans typical to
 # heavily fished tournament systems.
 U_df <- data.frame(
-  U_label    = c("Low-Prior",  "Low-Elevated",
-                 "Mod-Prior",  "Mod-Elevated",
-                 "High-Prior", "High-Elevated"),
-  U          = c(0.10, 0.15, 0.25, 0.35, 0.50, 0.60),
-  U_category = c("Low", "Low", "Moderate", "Moderate", "High", "High"),
+  U_label    = c("Low", "Moderate", "High"),
+  U          = c(0.10,  0.25,       0.50),
+  U_category = c("Low", "Moderate", "High"),
   stringsAsFactors = FALSE
 )
 
@@ -134,7 +132,7 @@ scen_params <- data.frame(
 
 growth_labels <- c("slow", "moderate", "fast")
 
-# Full crossing: 3 scenarios × 3 growth × 6 U = 54 combinations
+# Full crossing: 4 scenarios × 3 growth × 3 U = 36 combinations
 combos <- merge(
   merge(scen_params,
         data.frame(growth_preset = growth_labels, stringsAsFactors = FALSE),
@@ -145,10 +143,10 @@ combos <- merge(
 combos <- combos[order(combos$scenario, combos$growth_preset, combos$U), ]
 rownames(combos) <- NULL
 
-n_combos <- nrow(combos)  # 72
+n_combos <- nrow(combos)  # 36
 
 cat("Largemouth bass simulation\n")
-cat("  Combinations :", n_combos, "(4 scenarios x 3 growth x 6 U)\n")
+cat("  Combinations :", n_combos, "(4 scenarios x 3 growth x 3 U)\n")
 cat("  Replicates   :", nsim, "per combination\n")
 cat("  Total ticks  :", n_combos * nsim, "\n\n")
 

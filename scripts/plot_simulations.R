@@ -73,7 +73,7 @@ species_config <- list(
       "Traditional slot 356-457 mm" = "#d6604d"
     ),
     growth_filter = "moderate",
-    target_U      = c(0.30, 0.50, 0.70)
+    target_U      = c(0.15, 0.30, 0.50)
   ),
 
   # ── Largemouth bass (2x2: regulation type x mortality level) ─────────────
@@ -93,7 +93,7 @@ species_config <- list(
       "Protective slot 305-508 mm, high mortality" = "#c994c7"
     ),
     growth_filter = "moderate",
-    target_U      = c(0.10, 0.35, 0.60)
+    target_U      = c(0.10, 0.25, 0.50)
   )
 )
 

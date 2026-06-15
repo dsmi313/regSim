@@ -53,13 +53,11 @@ growth_fast     <- get_growth_preset("white_crappie", "fast")
 
 # ── Exploitation rates — Smith et al. 2025 ───────────────────────────────────
 # Six rates: prior creel-survey estimates paired with live-sonar-inflated
-# estimates at low / moderate / high effort (Table X, Smith et al. 2025).
+# Three representative exploitation levels for scenario comparison.
 U_df <- data.frame(
-  U_label    = c("Low-Prior",  "Low-Inflated",
-                 "Mod-Prior",  "Mod-Inflated",
-                 "High-Prior", "High-Inflated"),
-  U          = c(0.30, 0.34, 0.50, 0.57, 0.70, 0.79),
-  U_category = c("Low", "Low", "Moderate", "Moderate", "High", "High"),
+  U_label    = c("Low", "Moderate", "High"),
+  U          = c(0.30,  0.50,       0.70),
+  U_category = c("Low", "Moderate", "High"),
   stringsAsFactors = FALSE
 )
 
@@ -112,7 +110,7 @@ scen_params <- data.frame(
 
 growth_labels <- c("slow", "moderate", "fast")
 
-# Full crossing: 3 scenarios × 3 growth × 6 U = 54 combinations
+# Full crossing: 3 scenarios × 3 growth × 3 U = 27 combinations
 combos <- merge(
   merge(scen_params,
         data.frame(growth_preset = growth_labels, stringsAsFactors = FALSE),
@@ -123,10 +121,10 @@ combos <- merge(
 combos <- combos[order(combos$scenario, combos$growth_preset, combos$U), ]
 rownames(combos) <- NULL
 
-n_combos <- nrow(combos)  # 54
+n_combos <- nrow(combos)  # 27
 
 cat("White crappie simulation\n")
-cat("  Combinations :", n_combos, "(3 scenarios x 3 growth x 6 U)\n")
+cat("  Combinations :", n_combos, "(3 scenarios x 3 growth x 3 U)\n")
 cat("  Replicates   :", nsim, "per combination\n")
 cat("  Total ticks  :", n_combos * nsim, "\n\n")
 
