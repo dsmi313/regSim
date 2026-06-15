@@ -262,8 +262,7 @@ run_population_simulation <- function(bin_midpoints, length_bins,
       for (a in 1:(Amax - 1)) {
         new_age_len[a + 1, ] <- as.vector(age_survive[a, ] %*% Growth_matrix)
       }
-      new_age_len[1, ] <- new_age_len[1, ] +
-        (Ro * rlnorm(1, 0, sd = sigmaR)) * recruit_dist
+      new_age_len[1, ] <- new_age_len[1, ] + Ro * recruit_dist
       age_len          <- new_age_len
       N[init_year, ]   <- colSums(age_len)
       SSB_burnin[init_year] <- sum(N[init_year, ] * Fec_bins)
@@ -318,7 +317,7 @@ run_population_simulation <- function(bin_midpoints, length_bins,
       N[i, ]           <- colSums(age_len)
       Yield[i]         <- sum(Wt_bins * Vulharv_bins * N[i, ]) * U
       SSBt[i]          <- sum(N[i, ] * Fec_bins)
-      SPRt[i]          <- SSBt[i] / SPR_denom
+      SPRt[i]          <- (SSBt[i] / Rcapacity[i]) / (SPR_denom / Ro)
       YPR[i]           <- Yield[i] / max(1, Rcapacity[i])
       Prop[i]          <- sum(trophyvul_bins * N[i, ]) / max(1, sum(N[i, ]))
     }
