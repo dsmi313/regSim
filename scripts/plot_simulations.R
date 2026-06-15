@@ -125,6 +125,13 @@ summary_df <- sim_df |>
     Prop_med   = median(Prop),
     Prop_lo    = quantile(Prop, 0.25),
     Prop_hi    = quantile(Prop, 0.75),
+    # Relative egg production
+    RelEgg_mean = mean(RelEgg),
+    RelEgg_med  = median(RelEgg),
+    RelEgg_lo   = quantile(RelEgg, 0.25),
+    RelEgg_hi   = quantile(RelEgg, 0.75),
+    RelEgg_p05  = quantile(RelEgg, 0.05),
+    RelEgg_p95  = quantile(RelEgg, 0.95),
     # Mean harvested length
     MHL_mean   = mean(MeanLengthHarvested),
     MHL_lo     = quantile(MeanLengthHarvested, 0.25),
@@ -288,6 +295,38 @@ p_violin_ypr <- ggplot(violin_df,
     strip.text       = element_text(face = "bold")
   )
 
+# ── Figure 4c: RelEgg distribution violins at target exploitation rates ──────
+# RelEgg = stochastic stock-level egg production relative to the unfished
+# equilibrium. Values > 1 occur in sustained high-recruitment years and are
+# biologically meaningful, not a model error. The SPR reference line (dotted)
+# shows the per-recruit ratio (deterministic) for comparison.
+p_violin_relegg <- ggplot(violin_df,
+                          aes(x = scenario, y = RelEgg,
+                              fill = scenario, colour = scenario)) +
+  geom_violin(alpha = 0.35, linewidth = 0.3, trim = TRUE) +
+  geom_boxplot(width = 0.08, alpha = 0.80, outlier.shape = NA,
+               colour = "grey20", linewidth = 0.4) +
+  geom_hline(yintercept = 1.0, linetype = "dashed",
+             colour = "grey40", linewidth = 0.6) +
+  facet_wrap(~ U_facet, ncol = 3) +
+  scale_fill_manual(  values = scen_colors, name = "Regulation") +
+  scale_colour_manual(values = scen_colors, name = "Regulation") +
+  labs(
+    x        = NULL,
+    y        = "Relative egg production (RelEgg)",
+    subtitle = paste0("Growth preset: ", growth_filter,
+                      " | Violin = 10,000 replicates | Box = IQR | Dashed = unfished reference (1.0)")
+  ) +
+  theme_bw(base_size = 12) +
+  theme(
+    axis.text.x      = element_blank(),
+    axis.ticks.x     = element_blank(),
+    legend.position  = "bottom",
+    legend.direction = "horizontal",
+    strip.background = element_blank(),
+    strip.text       = element_text(face = "bold")
+  )
+
 # ── Figure 5: Mean SPR heat map ─────────────────────────────────────────────
 # Summarized further to scenario × exploitation category × growth.
 # Good as a compact overview figure or supplementary table replacement.
@@ -363,17 +402,19 @@ print(p_ypr)
 print(p_trophy)
 print(p_violin_spr)
 print(p_violin_ypr)
+print(p_violin_relegg)
 print(p_heat)
 print(p_tradeoff)
 
 # Uncomment to save (change filename prefix, dimensions, and dpi to taste):
-# ggsave("scripts/fig_spr.png",        p_spr,        width = 8, height = 4, dpi = 300)
-# ggsave("scripts/fig_ypr.png",        p_ypr,        width = 8, height = 4, dpi = 300)
-# ggsave("scripts/fig_trophy.png",     p_trophy,     width = 8, height = 4, dpi = 300)
-# ggsave("scripts/fig_violin_spr.png", p_violin_spr, width = 8, height = 5, dpi = 300)
-# ggsave("scripts/fig_violin_ypr.png", p_violin_ypr, width = 8, height = 5, dpi = 300)
-# ggsave("scripts/fig_heat.png",       p_heat,       width = 8, height = 4, dpi = 300)
-# ggsave("scripts/fig_tradeoff.png",   p_tradeoff,   width = 6, height = 5, dpi = 300)
+# ggsave("scripts/fig_spr.png",           p_spr,           width = 8, height = 4, dpi = 300)
+# ggsave("scripts/fig_ypr.png",           p_ypr,           width = 8, height = 4, dpi = 300)
+# ggsave("scripts/fig_trophy.png",        p_trophy,        width = 8, height = 4, dpi = 300)
+# ggsave("scripts/fig_violin_spr.png",    p_violin_spr,    width = 8, height = 5, dpi = 300)
+# ggsave("scripts/fig_violin_ypr.png",    p_violin_ypr,    width = 8, height = 5, dpi = 300)
+# ggsave("scripts/fig_violin_relegg.png", p_violin_relegg, width = 8, height = 5, dpi = 300)
+# ggsave("scripts/fig_heat.png",          p_heat,          width = 8, height = 4, dpi = 300)
+# ggsave("scripts/fig_tradeoff.png",      p_tradeoff,      width = 6, height = 5, dpi = 300)
 
-cat("\nPlot objects: p_spr, p_ypr, p_trophy, p_violin_spr, p_violin_ypr, p_heat, p_tradeoff\n")
+cat("\nPlot objects: p_spr, p_ypr, p_trophy, p_violin_spr, p_violin_ypr, p_violin_relegg, p_heat, p_tradeoff\n")
 cat("Summary data: summary_df (", nrow(summary_df), "rows )\n")
