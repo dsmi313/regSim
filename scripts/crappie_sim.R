@@ -183,7 +183,10 @@ for (i in seq_len(n_combos)) {
   # ── Step 4: Population simulation ─────────────────────────────────────────
   # Runs nsim stochastic replicates. collect_full_output=FALSE returns only
   # the per-replicate summary data frame (faster for large nsim).
-  # sim_df columns: sim, YPR, SPR, Prop, MeanLengthHarvested, Recruit
+  # sim_df columns: sim, YPR, SPR, RelEgg, Prop, MeanLengthHarvested, Recruit
+  #   SPR    = deterministic per-recruit ratio (phi_F / phi_0), bounded <= 1
+  #   RelEgg = stochastic stock egg production relative to unfished equilibrium
+  #            (may exceed 1 in favourable recruitment years)
   sim_out <- run_population_simulation(
     bin_midpoints       = bins$bin_midpoints,
     length_bins         = bins$length_bins,
