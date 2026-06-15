@@ -198,6 +198,25 @@ make_species_plots <- function(cfg) {
          x = "Exploitation rate (U)", y = "Yield per recruit (YPR)") +
     base_theme
 
+  # ── Figure 2b: Relative egg production vs. exploitation rate ─────────────
+  # Same style as the SPR trend, but for the stochastic stock-level metric.
+  # Ribbon = IQR across replicates; dashed line = unfished reference (1.0).
+  p_relegg <- ggplot(summary_df, aes(x = U, colour = scenario, fill = scenario)) +
+    geom_ribbon(aes(ymin = RelEgg_lo, ymax = RelEgg_hi), alpha = 0.20, colour = NA) +
+    geom_line(aes(y = RelEgg_mean), linewidth = 0.9) +
+    geom_hline(yintercept = 1.0, linetype = "dashed",
+               colour = "grey40", linewidth = 0.6) +
+    facet_wrap(~ growth_preset, ncol = 3,
+               labeller = labeller(growth_preset = growth_lab)) +
+    scale_x_continuous(labels = scales::percent_format()) +
+    scale_colour_manual(values = cfg$scen_colors, name = "Regulation") +
+    scale_fill_manual(  values = cfg$scen_colors, name = "Regulation") +
+    labs(title = cfg$label,
+         x = "Exploitation rate (U)",
+         y = "Relative egg production (RelEgg)",
+         caption = "Ribbon = interquartile range across replicates. Dashed = unfished reference (1.0).") +
+    base_theme
+
   # ── Figure 3: Trophy proportion vs. exploitation rate ───────────────────
   p_trophy <- ggplot(summary_df, aes(x = U, colour = scenario, fill = scenario)) +
     geom_ribbon(aes(ymin = Prop_lo, ymax = Prop_hi), alpha = 0.20, colour = NA) +
@@ -314,6 +333,7 @@ make_species_plots <- function(cfg) {
   list(
     summary_df      = summary_df,
     p_spr           = p_spr,
+    p_relegg        = p_relegg,
     p_ypr           = p_ypr,
     p_trophy        = p_trophy,
     p_violin_spr    = p_violin_spr,
@@ -350,9 +370,9 @@ for (sp_key in names(species_config)) {
 # ===========================================================================
 
 plot_dims <- list(
-  p_spr           = c(8, 4), p_ypr        = c(8, 4), p_trophy     = c(8, 4),
-  p_violin_spr    = c(8, 5), p_violin_ypr = c(8, 5), p_violin_relegg = c(8, 5),
-  p_heat          = c(8, 4), p_tradeoff   = c(6, 5)
+  p_spr           = c(8, 4), p_relegg     = c(8, 4), p_ypr        = c(8, 4),
+  p_trophy        = c(8, 4), p_violin_spr = c(8, 5), p_violin_ypr = c(8, 5),
+  p_violin_relegg = c(8, 5), p_heat       = c(8, 4), p_tradeoff   = c(6, 5)
 )
 
 for (sp_key in names(plots)) {
