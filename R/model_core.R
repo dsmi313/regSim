@@ -242,11 +242,13 @@ run_population_simulation <- function(bin_midpoints, length_bins,
     if (!is.null(progress_fn)) progress_fn(k, nsim)
 
     # --- Per-replicate storage ------------------------------------------------
-    N       <- matrix(0, Ymax, L_bins)
-    age_len <- matrix(0, Amax, L_bins)
-    Yield   <- rep(NA_real_, Ymax)
-    SPRt    <- rep(NA_real_, Ymax)
-    YPR     <- rep(NA_real_, Ymax)
+    N                <- matrix(0, Ymax, L_bins)
+    age_len          <- matrix(0, Amax, L_bins)
+    age_len_unfished <- matrix(0, Amax, L_bins)
+    Yield            <- rep(NA_real_, Ymax)
+    SPRt             <- rep(NA_real_, Ymax)
+    SSBt_unfished    <- rep(NA_real_, Ymax)
+    YPR              <- rep(NA_real_, Ymax)
     Prop    <- rep(NA_real_, Ymax)
     SSBt    <- rep(NA_real_, Ymax)
 
@@ -262,7 +264,8 @@ run_population_simulation <- function(bin_midpoints, length_bins,
       for (a in 1:(Amax - 1)) {
         new_age_len[a + 1, ] <- as.vector(age_survive[a, ] %*% Growth_matrix)
       }
-      new_age_len[1, ] <- new_age_len[1, ] + Ro * recruit_dist
+      new_age_len[1, ] <- new_age_len[1, ] +
+        (Ro * rlnorm(1, 0, sd = sigmaR)) * recruit_dist
       age_len          <- new_age_len
       N[init_year, ]   <- colSums(age_len)
       SSB_burnin[init_year] <- sum(N[init_year, ] * Fec_bins)
@@ -291,6 +294,9 @@ run_population_simulation <- function(bin_midpoints, length_bins,
       Prop[yr]  <- sum(trophyvul_bins * N[yr, ]) / max(1, sum(N[yr, ]))
     }
 
+    # --- Snapshot unfished equilibrium for shadow population -----------------
+    age_len_unfished <- age_len
+
     # --- Fished simulation years ---------------------------------------------
     start_year <- min(burnin_years + 1L, Ymax)
     for (i in start_year:Ymax) {
@@ -317,8 +323,19 @@ run_population_simulation <- function(bin_midpoints, length_bins,
       N[i, ]           <- colSums(age_len)
       Yield[i]         <- sum(Wt_bins * Vulharv_bins * N[i, ]) * U
       SSBt[i]          <- sum(N[i, ] * Fec_bins)
-      SPRt[i]          <- (SSBt[i] / Rcapacity[i]) / (SPR_denom / Ro)
       YPR[i]           <- Yield[i] / max(1, Rcapacity[i])
+
+      # Advance unfished shadow population (same Rcapacity, natural survival only)
+      age_survive_u <- age_len_unfished *
+        matrix(S_bins, nrow = Amax, ncol = L_bins, byrow = TRUE)
+      new_age_len_u <- matrix(0, Amax, L_bins)
+      for (a in 1:(Amax - 1)) {
+        new_age_len_u[a + 1, ] <- as.vector(age_survive_u[a, ] %*% Growth_matrix)
+      }
+      new_age_len_u[1, ] <- new_age_len_u[1, ] + Rcapacity[i] * recruit_dist
+      age_len_unfished   <- new_age_len_u
+      SSBt_unfished[i]   <- sum(colSums(age_len_unfished) * Fec_bins)
+      SPRt[i]            <- SSBt[i] / max(1e-12, SSBt_unfished[i])
       Prop[i]          <- sum(trophyvul_bins * N[i, ]) / max(1, sum(N[i, ]))
     }
 
