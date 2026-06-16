@@ -339,6 +339,7 @@ server <- function(input, output, session) {
   detailed_results <- reactiveVal(data.frame())
   yield_curve_data    <- reactiveVal(NULL)
   uncertainty_results <- reactiveVal(NULL)
+  uncertainty_ts_data <- reactiveVal(NULL)
 
   # Species parameter presets
   observeEvent(input$species, {
@@ -460,6 +461,10 @@ server <- function(input, output, session) {
         growth_samps <- sample_growth_parameters(input$linf, input$vbk, growth_cv_unc, n)
 
         unc_list <- vector("list", n)
+        # Per-year trajectories retained so the timeseries band reflects the
+        # full path of each parameter draw, not just its equilibrium average.
+        ypr_list <- vector("list", n); spr_list  <- vector("list", n)
+        prop_list <- vector("list", n); egg_list <- vector("list", n)
         for (k in seq_len(n)) {
           if (k %% max(1L, n %/% 20L) == 0)
             incProgress(0, detail = paste("Uncertainty sample", k, "of", n))
@@ -503,8 +508,12 @@ server <- function(input, output, session) {
             enable_ddr         = isTRUE(input$enable_ddr),
             steepness          = input$steepness,
             enable_depensation = isTRUE(input$enable_depensation),
-            collect_full_output = FALSE
+            collect_full_output = TRUE
           )
+          ypr_list[[k]]  <- sim_k$all_YPR
+          spr_list[[k]]  <- sim_k$all_SPR
+          prop_list[[k]] <- sim_k$all_Prop
+          egg_list[[k]]  <- sim_k$all_EggProd
           df_k <- sim_k$sim_df
           unc_list[[k]] <- data.frame(
             YPR                 = mean(df_k$YPR,                 na.rm = TRUE),
@@ -519,8 +528,13 @@ server <- function(input, output, session) {
           )
         }
         uncertainty_results(do.call(rbind, unc_list))
+        uncertainty_ts_data(
+          summarize_uncertainty_timeseries(ypr_list, spr_list, prop_list,
+                                           egg_list, Ymax)
+        )
       } else {
         uncertainty_results(NULL)
+        uncertainty_ts_data(NULL)
       }
     })
   })
@@ -684,71 +698,71 @@ server <- function(input, output, session) {
     burnin_years_plot <- if("burnin_years" %in% names(ts_data)) ts_data$burnin_years[1] else 20
     yr_max  <- max(ts_data$Year)
 
-    # Parameter uncertainty envelopes (flat bands over equilibrium portion)
-    unc <- uncertainty_results()
-    unc_ypr  <- if (!is.null(unc)) quantile(unc$YPR,  c(0.025, 0.975), na.rm = TRUE) else NULL
-    unc_spr  <- if (!is.null(unc)) quantile(unc$SPR,  c(0.025, 0.975), na.rm = TRUE) else NULL
-    unc_prop <- if (!is.null(unc)) quantile(unc$Prop, c(0.025, 0.975), na.rm = TRUE) else NULL
+    # When parameter uncertainty is on, unc_ts holds a per-year band pooling
+    # every parameter draw and its recruitment replicates. It is drawn as a
+    # wider OUTER band beneath the recruitment-only INNER band from the main
+    # simulation, so the two uncertainty sources stay visually distinct.
+    unc    <- uncertainty_results()
+    unc_ts <- uncertainty_ts_data()
+    band_lbl <- if (!is.null(unc_ts))
+      "Inner: recruitment PI | Outer: + parameter uncertainty"
+    else
+      "Band: 95% recruitment PI"
 
-    unc_sub  <- if (!is.null(unc)) " | Outer band: parameter uncertainty" else ""
+    # Inner ribbon = recruitment PI from ts_data; outer ribbon (when uncertainty
+    # is on) = combined per-year band from unc_ts, drawn first so it sits behind.
+    # Both data frames share the *_lower/*_upper column names.
+    band_geom <- function(lo_col, hi_col, fill) {
+      inner <- geom_ribbon(aes(ymin = .data[[lo_col]], ymax = .data[[hi_col]]),
+                           alpha = 0.30, fill = fill)
+      if (is.null(unc_ts)) return(inner)
+      outer <- geom_ribbon(data = unc_ts,
+                           aes(x = Year, ymin = .data[[lo_col]], ymax = .data[[hi_col]]),
+                           inherit.aes = FALSE, alpha = 0.15, fill = fill)
+      list(outer, inner)
+    }
 
     p1 <- ggplot(ts_data, aes(x = Year, y = YPR_mean)) +
       annotate("rect", xmin = 1, xmax = burnin_years_plot, ymin = -Inf, ymax = Inf,
                fill = "gray", alpha = 0.2) +
-      {if (!is.null(unc_ypr))
-        annotate("rect", xmin = burnin_years_plot, xmax = yr_max,
-                 ymin = unc_ypr[1], ymax = unc_ypr[2], fill = "steelblue", alpha = 0.12)
-      } +
-      geom_ribbon(aes(ymin = YPR_lower, ymax = YPR_upper),
-                  alpha = 0.25, fill = "steelblue") +
+      band_geom("YPR_lower", "YPR_upper", "steelblue") +
       geom_line(color = "steelblue", size = 1) +
       geom_vline(xintercept = burnin_years_plot, linetype = "dotted", color = "gray40", alpha = 0.7) +
       labs(title = "YPR Over Time",
-           subtitle = paste0("Inner band: recruitment noise", unc_sub),
+           subtitle = band_lbl,
            x = "", y = "YPR (kg)") +
       theme_minimal()
     p2 <- ggplot(ts_data, aes(x = Year, y = SPR_mean)) +
       annotate("rect", xmin = 1, xmax = burnin_years_plot, ymin = -Inf, ymax = Inf,
                fill = "gray", alpha = 0.2) +
-      {if (!is.null(unc_spr))
-        annotate("rect", xmin = burnin_years_plot, xmax = yr_max,
-                 ymin = unc_spr[1], ymax = unc_spr[2], fill = "darkgreen", alpha = 0.12)
-      } +
-      geom_ribbon(aes(ymin = SPR_lower, ymax = SPR_upper),
-                  alpha = 0.25, fill = "darkgreen") +
+      band_geom("SPR_lower", "SPR_upper", "darkgreen") +
       geom_line(color = "darkgreen", size = 1) +
       geom_vline(xintercept = burnin_years_plot, linetype = "dotted", color = "gray40", alpha = 0.7) +
       geom_hline(yintercept = 0.40, linetype = "dashed", color = "orange", alpha = 0.7) +
       geom_hline(yintercept = 0.30, linetype = "dashed", color = "red", alpha = 0.7) +
       labs(title = "SPR Over Time",
-           subtitle = paste0("Dashed: 40%/30% thresholds", unc_sub),
+           subtitle = paste0("Dashed: 40%/30% thresholds | ", band_lbl),
            x = "", y = "SPR") +
       theme_minimal()
     memorable_inches <- round(input$memorable_size / 25.4, 1)
     p3 <- ggplot(ts_data, aes(x = Year, y = Prop_mean)) +
       annotate("rect", xmin = 1, xmax = burnin_years_plot, ymin = -Inf, ymax = Inf,
                fill = "gray", alpha = 0.2) +
-      {if (!is.null(unc_prop))
-        annotate("rect", xmin = burnin_years_plot, xmax = yr_max,
-                 ymin = unc_prop[1], ymax = unc_prop[2], fill = "darkorange", alpha = 0.12)
-      } +
-      geom_ribbon(aes(ymin = Prop_lower, ymax = Prop_upper),
-                  alpha = 0.25, fill = "darkorange") +
+      band_geom("Prop_lower", "Prop_upper", "darkorange") +
       geom_line(color = "darkorange", size = 1) +
       geom_vline(xintercept = burnin_years_plot, linetype = "dotted", color = "gray40", alpha = 0.7) +
       labs(title = paste0("Proportion Memorable (≥", memorable_inches, "\") Over Time"),
-           subtitle = paste0("Inner band: recruitment noise", unc_sub),
+           subtitle = band_lbl,
            x = "", y = "Proportion") +
       theme_minimal()
     p4 <- ggplot(ts_data, aes(x = Year, y = EggProd_mean)) +
       annotate("rect", xmin = 1, xmax = burnin_years_plot, ymin = -Inf, ymax = Inf,
                fill = "gray", alpha = 0.2) +
-      geom_ribbon(aes(ymin = EggProd_lower, ymax = EggProd_upper),
-                  alpha = 0.2, fill = "purple") +
+      band_geom("EggProd_lower", "EggProd_upper", "purple") +
       geom_line(color = "purple", size = 1) +
       geom_vline(xintercept = burnin_years_plot, linetype = "dotted", color = "gray40", alpha = 0.7) +
       labs(title = "Total Egg Production Over Time",
-           subtitle = paste0("Absolute egg output | Gray: burn-in", unc_sub),
+           subtitle = paste0("Absolute egg output | Gray: burn-in | ", band_lbl),
            x = "Year", y = "Egg production") +
       theme_minimal()
     subplot(ggplotly(p1), ggplotly(p2), ggplotly(p3), ggplotly(p4),
@@ -757,7 +771,7 @@ server <- function(input, output, session) {
         title  = list(
           text    = paste0("Population Metrics Over Time<br>",
                            "<sup>Mean across ", input$nsim, " simulations",
-                           if (!is.null(unc)) " | Outer band: parameter uncertainty" else " with 95% prediction intervals",
+                           if (!is.null(unc_ts)) " | Inner: recruitment PI, Outer: + parameter uncertainty" else " with 95% prediction intervals",
                            "</sup>"),
           x       = 0.5,
           xanchor = "center"
