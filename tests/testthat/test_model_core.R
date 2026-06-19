@@ -172,3 +172,24 @@ test_that("burnin_years equals min(Ymax, Amax + 20)", {
   out <- do.call(run_population_simulation, c(inp, collect_full_output = FALSE))
   expect_equal(out$burnin_years, min(inp$Ymax, inp$Amax + 20))
 })
+
+test_that("fast path (collect_full_output=FALSE) gives same sim_df as full path at same seed", {
+  inp <- make_wc_inputs(nsim = 200)
+  set.seed(42)
+  out_full <- do.call(run_population_simulation, c(inp, list(collect_full_output = TRUE)))
+  set.seed(42)
+  out_fast <- do.call(run_population_simulation, c(inp, list(collect_full_output = FALSE)))
+  expect_equal(out_full$sim_df, out_fast$sim_df, tolerance = 1e-9)
+})
+
+test_that("fast path sim_df columns are finite and biologically plausible", {
+  set.seed(7)
+  inp <- make_wc_inputs(nsim = 50)
+  out <- do.call(run_population_simulation, c(inp, list(collect_full_output = FALSE)))
+  df  <- out$sim_df
+  expect_true(all(is.finite(df$SPR)))
+  expect_true(all(df$SPR    >= 0))
+  expect_true(all(df$YPR    >= 0, na.rm = TRUE))
+  expect_true(all(df$Prop   >= 0 & df$Prop   <= 1, na.rm = TRUE))
+  expect_true(all(df$Recruit > 0, na.rm = TRUE))
+})
