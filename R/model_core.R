@@ -227,6 +227,29 @@ run_population_simulation <- function(bin_midpoints, length_bins,
   harvest_weight_bins <- Wt_bins * Vulharv_bins * U
   harvest_number_bins <- Vulharv_bins * U
 
+  # --- Pre-compute deterministic burn-in (constant across ALL replicates) ------
+  # Burn-in uses only S_mat, constant Ro * recruit_dist, and zero random draws,
+  # so the result is identical for every k. Compute once and copy into each
+  # replicate instead of re-running burnin_years of matrix algebra nsim times.
+  burnin_age_len        <- matrix(0, Amax, L_bins)
+  burnin_age_len[1, ]   <- Ro * recruit_dist
+  N_burnin              <- matrix(0, burnin_years, L_bins)
+  N_burnin[1, ]         <- colSums(burnin_age_len)
+  eggs_burnin_ref       <- numeric(burnin_years)
+  eggs_burnin_ref[1]    <- sum(N_burnin[1, ] * Fec_bins)
+  for (init_year in 2:burnin_years) {
+    age_survive                <- burnin_age_len * S_mat
+    burnin_age_len[]           <- 0
+    burnin_age_len[2:Amax, ]   <- age_survive[1:(Amax - 1), ] %*% Growth_matrix
+    burnin_age_len[1, ]        <- Ro * recruit_dist
+    N_burnin[init_year, ]      <- colSums(burnin_age_len)
+    eggs_burnin_ref[init_year] <- sum(N_burnin[init_year, ] * Fec_bins)
+  }
+  burnin_start_ref <- max(1L, burnin_years - 9L)
+  SPR_denom_ref    <- mean(eggs_burnin_ref[burnin_start_ref:burnin_years])
+  SSB0_ref         <- SPR_denom_ref
+  eggs_prev_ref    <- eggs_burnin_ref[burnin_years]
+
   # --- Per-simulation output storage -----------------------------------------
   sim_df <- data.frame(
     sim                = seq_len(nsim),
@@ -255,22 +278,9 @@ run_population_simulation <- function(bin_midpoints, length_bins,
     # summary. RNG draw order matches the full path exactly (same seed → same
     # sim_df), so the equivalence test set.seed(x) full == set.seed(x) fast.
     if (!collect_full_output) {
-      age_len      <- matrix(0, Amax, L_bins)
-      age_len[1, ] <- Ro * recruit_dist
-      eggs_burnin  <- rep(NA_real_, burnin_years)
-      eggs_burnin[1] <- sum(colSums(age_len) * Fec_bins)
-
-      for (init_year in 2:burnin_years) {
-        age_survive       <- age_len * S_mat
-        age_len[]         <- 0
-        age_len[2:Amax, ] <- age_survive[1:(Amax - 1), ] %*% Growth_matrix
-        age_len[1, ]      <- Ro * recruit_dist
-        eggs_burnin[init_year] <- sum(colSums(age_len) * Fec_bins)
-      }
-
-      burnin_start <- max(1L, burnin_years - 9L)
-      SPR_denom    <- mean(eggs_burnin[burnin_start:burnin_years], na.rm = TRUE)
-      SSB0         <- SPR_denom
+      age_len   <- burnin_age_len   # copy of pre-computed end-of-burnin state
+      SPR_denom <- SPR_denom_ref
+      SSB0      <- SSB0_ref
 
       if (isTRUE(enable_ddr)) {
         Rcapacity <- rep(NA_real_, Ymax)
@@ -287,7 +297,7 @@ run_population_simulation <- function(bin_midpoints, length_bins,
       SPR_acc <- YPR_acc <- Prop_acc <- Recruit_acc <- 0.0
       harv_len_sum <- 0.0
       harv_len_n   <- 0L
-      eggs_prev    <- sum(colSums(age_len) * Fec_bins)
+      eggs_prev    <- eggs_prev_ref
 
       for (i in start_year:Ymax) {
         if (isTRUE(enable_ddr)) {
@@ -344,29 +354,11 @@ run_population_simulation <- function(bin_midpoints, length_bins,
     Prop   <- rep(NA_real_, Ymax)
     eggs_t <- rep(NA_real_, Ymax)
 
-    # --- Burn-in: build unfished equilibrium (no harvest) --------------------
-    # Deterministic (constant Ro) so the unfished egg-production reference
-    # converges to Ro * phi_0 exactly, giving a clean denominator for the
-    # relative-egg-production metric below.
-    age_len[1, ] <- Ro * recruit_dist
-    N[1, ]       <- colSums(age_len)
-    eggs_burnin  <- rep(NA_real_, burnin_years)
-    eggs_burnin[1] <- sum(N[1, ] * Fec_bins)
-
-    for (init_year in 2:burnin_years) {
-      age_survive           <- age_len * S_mat
-      new_age_len           <- matrix(0, Amax, L_bins)
-      new_age_len[2:Amax, ] <- age_survive[1:(Amax - 1), ] %*% Growth_matrix
-      new_age_len[1, ]      <- Ro * recruit_dist
-      age_len               <- new_age_len
-      N[init_year, ]        <- colSums(age_len)
-      eggs_burnin[init_year] <- sum(N[init_year, ] * Fec_bins)
-    }
-
-    # --- Unfished egg-production reference (denominator for relative eggs) ----
-    burnin_start <- max(1L, burnin_years - 9L)
-    SPR_denom    <- mean(eggs_burnin[burnin_start:burnin_years], na.rm = TRUE)
-    SSB0         <- SPR_denom
+    # --- Restore cached burn-in state (computed once outside the k-loop) ------
+    N[seq_len(burnin_years), ] <- N_burnin
+    age_len                    <- burnin_age_len
+    SPR_denom                  <- SPR_denom_ref
+    SSB0                       <- SSB0_ref
 
     # --- Stochastic recruitment capacity for the fished period ---------------
     if (isTRUE(enable_ddr)) {
@@ -430,7 +422,8 @@ run_population_simulation <- function(bin_midpoints, length_bins,
       th <- sum(hb)
       if (th > 0) sum(hb * bin_midpoints) / th else NA_real_
     }, numeric(1))
-    sim_df$MeanLengthHarvested[k] <- mean(harvest_lengths, na.rm = TRUE)
+    harvest_mh <- mean(harvest_lengths, na.rm = TRUE)
+    sim_df$MeanLengthHarvested[k] <- if (is.nan(harvest_mh)) NA_real_ else harvest_mh
 
     if (collect_full_output) {
       all_YPR[, k]          <- YPR
