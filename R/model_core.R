@@ -221,6 +221,35 @@ run_population_simulation <- function(bin_midpoints, length_bins,
   sigmaR       <- sqrt(log(rec_cv ^ 2 + 1))
   burnin_years <- min(Ymax, Amax + 20)
 
+  # --- Pre-compute constant arrays (invariant across all replicates) ----------
+  S_mat               <- matrix(S_bins,       nrow = Amax, ncol = L_bins, byrow = TRUE)
+  Survival_mat        <- matrix(Survival_bins, nrow = Amax, ncol = L_bins, byrow = TRUE)
+  harvest_weight_bins <- Wt_bins * Vulharv_bins * U
+  harvest_number_bins <- Vulharv_bins * U
+
+  # --- Pre-compute deterministic burn-in (constant across ALL replicates) ------
+  # Burn-in uses only S_mat, constant Ro * recruit_dist, and zero random draws,
+  # so the result is identical for every k. Compute once and copy into each
+  # replicate instead of re-running burnin_years of matrix algebra nsim times.
+  burnin_age_len        <- matrix(0, Amax, L_bins)
+  burnin_age_len[1, ]   <- Ro * recruit_dist
+  N_burnin              <- matrix(0, burnin_years, L_bins)
+  N_burnin[1, ]         <- colSums(burnin_age_len)
+  eggs_burnin_ref       <- numeric(burnin_years)
+  eggs_burnin_ref[1]    <- sum(N_burnin[1, ] * Fec_bins)
+  for (init_year in 2:burnin_years) {
+    age_survive                <- burnin_age_len * S_mat
+    burnin_age_len[]           <- 0
+    burnin_age_len[2:Amax, ]   <- age_survive[1:(Amax - 1), ] %*% Growth_matrix
+    burnin_age_len[1, ]        <- Ro * recruit_dist
+    N_burnin[init_year, ]      <- colSums(burnin_age_len)
+    eggs_burnin_ref[init_year] <- sum(N_burnin[init_year, ] * Fec_bins)
+  }
+  burnin_start_ref <- max(1L, burnin_years - 9L)
+  SPR_denom_ref    <- mean(eggs_burnin_ref[burnin_start_ref:burnin_years])
+  SSB0_ref         <- SPR_denom_ref
+  eggs_prev_ref    <- eggs_burnin_ref[burnin_years]
+
   # --- Per-simulation output storage -----------------------------------------
   sim_df <- data.frame(
     sim                = seq_len(nsim),
@@ -243,6 +272,79 @@ run_population_simulation <- function(bin_midpoints, length_bins,
   for (k in seq_len(nsim)) {
     if (!is.null(progress_fn)) progress_fn(k, nsim)
 
+    # ── FAST PATH: collect_full_output = FALSE ─────────────────────────────
+    # Avoids allocating N[Ymax, L_bins] and full year-vectors; uses only the
+    # current age_len matrix plus scalar accumulators for the final-50-year
+    # summary. RNG draw order matches the full path exactly (same seed → same
+    # sim_df), so the equivalence test set.seed(x) full == set.seed(x) fast.
+    if (!collect_full_output) {
+      age_len   <- burnin_age_len   # copy of pre-computed end-of-burnin state
+      SPR_denom <- SPR_denom_ref
+      SSB0      <- SSB0_ref
+
+      if (isTRUE(enable_ddr)) {
+        Rcapacity <- rep(NA_real_, Ymax)
+      } else if (rec_cv == 0) {
+        Rcapacity <- rep(Ro, Ymax)
+      } else {
+        Rcapacity <- Ro * rlnorm(Ymax, meanlog = -0.5 * sigmaR^2, sd = sigmaR)
+      }
+
+      start_year    <- min(burnin_years + 1L, Ymax)
+      last_50_start <- max(start_year, Ymax - 49L)
+      n50           <- Ymax - last_50_start + 1L
+
+      SPR_acc <- YPR_acc <- Prop_acc <- Recruit_acc <- 0.0
+      harv_len_sum <- 0.0
+      harv_len_n   <- 0L
+      eggs_prev    <- eggs_prev_ref
+
+      for (i in start_year:Ymax) {
+        if (isTRUE(enable_ddr)) {
+          eggs_prev <- max(0, eggs_prev)
+          R_BH      <- (4 * steepness * Ro * eggs_prev) /
+                       (SSB0 * (1 - steepness) + (5 * steepness - 1) * eggs_prev)
+          R_BH      <- max(1, R_BH)
+          if (isTRUE(enable_depensation) && eggs_prev < 0.2 * SSB0)
+            R_BH    <- R_BH * (eggs_prev / (0.2 * SSB0)) ^ 2
+          Rcapacity[i] <- if (rec_cv == 0) max(1, R_BH) else
+            max(1, R_BH * rlnorm(1, 0, sd = sigmaR))
+        }
+
+        age_survive       <- age_len * Survival_mat
+        age_len[]         <- 0
+        age_len[2:Amax, ] <- age_survive[1:(Amax - 1), ] %*% Growth_matrix
+        age_len[1, ]      <- Rcapacity[i] * recruit_dist
+        N_cur             <- colSums(age_len)
+        eggs_cur          <- sum(N_cur * Fec_bins)
+
+        if (i >= last_50_start) {
+          yld_i       <- sum(harvest_weight_bins * N_cur)
+          SPR_acc     <- SPR_acc     + eggs_cur / SPR_denom
+          YPR_acc     <- YPR_acc     + yld_i / max(1, Rcapacity[i])
+          Prop_acc    <- Prop_acc    + sum(trophyvul_bins * N_cur) / max(1, sum(N_cur))
+          Recruit_acc <- Recruit_acc + Rcapacity[i]
+          hb_tot      <- sum(harvest_number_bins * N_cur)
+          if (hb_tot > 0) {
+            harv_len_sum <- harv_len_sum +
+              sum(harvest_number_bins * N_cur * bin_midpoints) / hb_tot
+            harv_len_n   <- harv_len_n + 1L
+          }
+        }
+        eggs_prev <- eggs_cur
+      }
+
+      sim_df$SPR[k]               <- SPR_acc     / n50
+      sim_df$YPR[k]               <- YPR_acc     / n50
+      sim_df$Prop[k]              <- Prop_acc    / n50
+      sim_df$Recruit[k]           <- Recruit_acc / n50
+      sim_df$MeanLengthHarvested[k] <-
+        if (harv_len_n > 0) harv_len_sum / harv_len_n else NA_real_
+      next
+    }
+
+    # ── FULL PATH: collect_full_output = TRUE ──────────────────────────────
+
     # --- Per-replicate storage ------------------------------------------------
     N      <- matrix(0, Ymax, L_bins)
     age_len <- matrix(0, Amax, L_bins)
@@ -252,31 +354,11 @@ run_population_simulation <- function(bin_midpoints, length_bins,
     Prop   <- rep(NA_real_, Ymax)
     eggs_t <- rep(NA_real_, Ymax)
 
-    # --- Burn-in: build unfished equilibrium (no harvest) --------------------
-    # Deterministic (constant Ro) so the unfished egg-production reference
-    # converges to Ro * phi_0 exactly, giving a clean denominator for the
-    # relative-egg-production metric below.
-    age_len[1, ] <- Ro * recruit_dist
-    N[1, ]       <- colSums(age_len)
-    eggs_burnin  <- rep(NA_real_, burnin_years)
-    eggs_burnin[1] <- sum(N[1, ] * Fec_bins)
-
-    for (init_year in 2:burnin_years) {
-      age_survive <- age_len * matrix(S_bins, nrow = Amax, ncol = L_bins, byrow = TRUE)
-      new_age_len <- matrix(0, Amax, L_bins)
-      for (a in 1:(Amax - 1)) {
-        new_age_len[a + 1, ] <- as.vector(age_survive[a, ] %*% Growth_matrix)
-      }
-      new_age_len[1, ] <- new_age_len[1, ] + Ro * recruit_dist
-      age_len          <- new_age_len
-      N[init_year, ]   <- colSums(age_len)
-      eggs_burnin[init_year] <- sum(N[init_year, ] * Fec_bins)
-    }
-
-    # --- Unfished egg-production reference (denominator for relative eggs) ----
-    burnin_start <- max(1L, burnin_years - 9L)
-    SPR_denom    <- mean(eggs_burnin[burnin_start:burnin_years], na.rm = TRUE)
-    SSB0         <- SPR_denom
+    # --- Restore cached burn-in state (computed once outside the k-loop) ------
+    N[seq_len(burnin_years), ] <- N_burnin
+    age_len                    <- burnin_age_len
+    SPR_denom                  <- SPR_denom_ref
+    SSB0                       <- SSB0_ref
 
     # --- Stochastic recruitment capacity for the fished period ---------------
     if (isTRUE(enable_ddr)) {
@@ -311,16 +393,13 @@ run_population_simulation <- function(bin_midpoints, length_bins,
           max(1, R_BH * rlnorm(1, 0, sd = sigmaR))
       }
 
-      age_survive <- age_len *
-        matrix(Survival_bins, nrow = Amax, ncol = L_bins, byrow = TRUE)
-      new_age_len <- matrix(0, Amax, L_bins)
-      for (a in 1:(Amax - 1)) {
-        new_age_len[a + 1, ] <- as.vector(age_survive[a, ] %*% Growth_matrix)
-      }
-      new_age_len[1, ] <- new_age_len[1, ] + Rcapacity[i] * recruit_dist
-      age_len          <- new_age_len
-      N[i, ]           <- colSums(age_len)
-      Yield[i]         <- sum(Wt_bins * Vulharv_bins * N[i, ]) * U
+      age_survive           <- age_len * Survival_mat
+      new_age_len           <- matrix(0, Amax, L_bins)
+      new_age_len[2:Amax, ] <- age_survive[1:(Amax - 1), ] %*% Growth_matrix
+      new_age_len[1, ]      <- Rcapacity[i] * recruit_dist
+      age_len               <- new_age_len
+      N[i, ]                <- colSums(age_len)
+      Yield[i]              <- sum(harvest_weight_bins * N[i, ])
       eggs_t[i]        <- sum(N[i, ] * Fec_bins)
       YPR[i]           <- Yield[i] / max(1, Rcapacity[i])
 
@@ -339,11 +418,12 @@ run_population_simulation <- function(bin_midpoints, length_bins,
     sim_df$Recruit[k] <- mean(Rcapacity[idx], na.rm = TRUE)
 
     harvest_lengths <- vapply(idx, function(yr) {
-      hb <- N[yr, ] * Vulharv_bins * U
+      hb <- N[yr, ] * harvest_number_bins
       th <- sum(hb)
       if (th > 0) sum(hb * bin_midpoints) / th else NA_real_
     }, numeric(1))
-    sim_df$MeanLengthHarvested[k] <- mean(harvest_lengths, na.rm = TRUE)
+    harvest_mh <- mean(harvest_lengths, na.rm = TRUE)
+    sim_df$MeanLengthHarvested[k] <- if (is.nan(harvest_mh)) NA_real_ else harvest_mh
 
     if (collect_full_output) {
       all_YPR[, k]          <- YPR

@@ -30,21 +30,16 @@
 #                                lmb_simulations_df)
 
 library(regSim)
-library(progress)
+library(future.apply)
+library(progressr)
 library(dplyr)
 
-# ── Progress bar ──────────────────────────────────────────────────────────────
-pbar_init <- function(x) {
-  progress_bar$new(
-    format     = "(:spin) [:bar] :percent [Elapsed time: :elapsedfull || You got this long: :eta]",
-    total      = x,
-    complete   = "\U0398",
-    incomplete = "\U03A6",
-    current    = "\U0394",
-    clear      = FALSE,
-    width      = 100
-  )
-}
+plan(multicore, workers = parallelly::availableCores())
+handlers(handler_progress(
+  format = "(:spin) [:bar] :percent [Elapsed time: :elapsedfull || ETA: :eta]",
+  clear  = FALSE,
+  width  = 100
+))
 
 # ── Species preset ────────────────────────────────────────────────────────────
 # wl_a = 6.63e-6, wl_b = 3.10  (W in kg, L in mm)
@@ -134,91 +129,108 @@ rownames(combos) <- NULL
 
 n_combos <- nrow(combos)  # 27
 
-cat("Walleye simulation\n")
-cat("  Combinations :", n_combos, "(3 scenarios x 3 growth x 3 U)\n")
-cat("  Replicates   :", nsim, "per combination\n")
-cat("  Total ticks  :", n_combos * nsim, "\n\n")
+# ── Pre-compute cached inputs (bins and gmat depend only on growth_preset;
+#    vc depends on scenario × growth_preset but NOT on U) ─────────────────────
+growth_presets_list <- list(
+  slow     = growth_slow,
+  moderate = growth_moderate,
+  fast     = growth_fast
+)
 
-# ── Main simulation loop ──────────────────────────────────────────────────────
-pbar <- pbar_init(n_combos * nsim)
+bins_cache <- vector("list", length(growth_presets_list))
+names(bins_cache) <- names(growth_presets_list)
+gmat_cache <- vector("list", length(growth_presets_list))
+names(gmat_cache) <- names(growth_presets_list)
 
-results_list <- vector("list", n_combos)
-
-for (i in seq_len(n_combos)) {
-
-  combo <- combos[i, ]
-
-  growth <- switch(combo$growth_preset,
-    slow     = growth_slow,
-    moderate = growth_moderate,
-    fast     = growth_fast
-  )
-
-  # ── Step 1: Length bins ───────────────────────────────────────────────────
-  bins <- make_length_bins(Linf = growth$linf)
-
-  # ── Step 2: Growth matrix + recruit distribution ──────────────────────────
-  gmat <- make_growth_matrix(
-    Linf          = growth$linf,
-    vbk           = growth$vbk,
-    t0            = growth$t0,
-    bin_midpoints = bins$bin_midpoints,
-    length_bins   = bins$length_bins,
+for (gp in names(growth_presets_list)) {
+  g <- growth_presets_list[[gp]]
+  bins_cache[[gp]] <- make_length_bins(Linf = g$linf)
+  gmat_cache[[gp]] <- make_growth_matrix(
+    Linf          = g$linf,
+    vbk           = g$vbk,
+    t0            = g$t0,
+    bin_midpoints = bins_cache[[gp]]$bin_midpoints,
+    length_bins   = bins_cache[[gp]]$length_bins,
     growth_cv     = 0.20
   )
-
-  # ── Step 3: Vulnerability and life-history curves ─────────────────────────
-  vc <- make_vulnerability_curves(
-    bin_midpoints  = bins$bin_midpoints,
-    Capsize        = sp$capsize,
-    Harvlim        = combo$Harvlim,
-    mat_size       = sp$mat_size,
-    memorable_size = sp$memorable_size,
-    wl_a           = sp$wl_a,
-    wl_b           = sp$wl_b,
-    nat_mort       = growth$nat_mort,
-    fec_exp        = sp$fec_exp,
-    enable_slot    = combo$enable_slot,
-    slot_type      = combo$slot_type,
-    slot_upper     = if (!is.na(combo$slot_upper)) combo$slot_upper else NULL
-  )
-
-  # ── Step 4: Population simulation ─────────────────────────────────────────
-  sim_out <- run_population_simulation(
-    bin_midpoints       = bins$bin_midpoints,
-    length_bins         = bins$length_bins,
-    Growth_matrix       = gmat$Growth_matrix,
-    recruit_dist        = gmat$recruit_dist,
-    Vulcap_bins         = vc$Vulcap_bins,
-    Vulharv_bins        = vc$Vulharv_bins,
-    trophyvul_bins      = vc$trophyvul_bins,
-    Fec_bins            = vc$Fec_bins,
-    Wt_bins             = vc$Wt_bins,
-    S_bins              = vc$S_bins,
-    Amax                = sp$amax,
-    Ymax                = sp$ymax,
-    Ro                  = Ro,
-    rec_cv              = sp$rec_cv,
-    U                   = combo$U,
-    DisMort             = combo$DisMort,
-    nsim                = nsim,
-    collect_full_output = FALSE,
-    progress_fn         = function(k, n) suppressWarnings(pbar$tick())
-  )
-
-  # ── Step 5: Tag with metadata ─────────────────────────────────────────────
-  d               <- sim_out$sim_df
-  d$species       <- "walleye"
-  d$scenario      <- combo$scenario
-  d$growth_preset <- combo$growth_preset
-  d$U_label       <- combo$U_label
-  d$U             <- combo$U
-  d$U_category    <- combo$U_category
-  d$Harvlim       <- combo$Harvlim
-  d$DisMort       <- combo$DisMort
-
-  results_list[[i]] <- d
 }
+
+vc_cache <- list()
+for (i in seq_len(nrow(combos))) {
+  combo <- combos[i, ]
+  key   <- paste(combo$scenario, combo$growth_preset, sep = "\n")
+  if (is.null(vc_cache[[key]])) {
+    vc_cache[[key]] <- make_vulnerability_curves(
+      bin_midpoints  = bins_cache[[combo$growth_preset]]$bin_midpoints,
+      Capsize        = sp$capsize,
+      Harvlim        = combo$Harvlim,
+      mat_size       = sp$mat_size,
+      memorable_size = sp$memorable_size,
+      wl_a           = sp$wl_a,
+      wl_b           = sp$wl_b,
+      nat_mort       = growth_presets_list[[combo$growth_preset]]$nat_mort,
+      fec_exp        = sp$fec_exp,
+      enable_slot    = combo$enable_slot,
+      slot_type      = combo$slot_type,
+      slot_upper     = if (!is.na(combo$slot_upper)) combo$slot_upper else NULL
+    )
+  }
+}
+
+cat("Walleye simulation\n")
+cat("  Combinations :", n_combos, "(3 scenarios x 3 growth x 3 U)\n")
+cat("  Replicates   :", nsim, "per combination\n\n")
+
+# ── Main simulation loop ──────────────────────────────────────────────────────
+results_list <- with_progress({
+  # NB: do not name this `p` — with_progress() evaluates this block in the
+  # caller's environment, so `p` would leak into .GlobalEnv and shadow
+  # shiny::p() (the <p> tag), breaking any Shiny app launched in the same
+  # session.
+  prog <- progressr::progressor(steps = n_combos)
+  future_lapply(seq_len(n_combos), function(i) {
+    combo <- combos[i, ]
+    key   <- paste(combo$scenario, combo$growth_preset, sep = "\n")
+
+    bins <- bins_cache[[combo$growth_preset]]
+    gmat <- gmat_cache[[combo$growth_preset]]
+    vc   <- vc_cache[[key]]
+
+    sim_out <- run_population_simulation(
+      bin_midpoints       = bins$bin_midpoints,
+      length_bins         = bins$length_bins,
+      Growth_matrix       = gmat$Growth_matrix,
+      recruit_dist        = gmat$recruit_dist,
+      Vulcap_bins         = vc$Vulcap_bins,
+      Vulharv_bins        = vc$Vulharv_bins,
+      trophyvul_bins      = vc$trophyvul_bins,
+      Fec_bins            = vc$Fec_bins,
+      Wt_bins             = vc$Wt_bins,
+      S_bins              = vc$S_bins,
+      Amax                = sp$amax,
+      Ymax                = sp$ymax,
+      Ro                  = Ro,
+      rec_cv              = sp$rec_cv,
+      U                   = combo$U,
+      DisMort             = combo$DisMort,
+      nsim                = nsim,
+      collect_full_output = FALSE
+    )
+
+    d               <- sim_out$sim_df
+    d$species       <- "walleye"
+    d$scenario      <- combo$scenario
+    d$growth_preset <- combo$growth_preset
+    d$U_label       <- combo$U_label
+    d$U             <- combo$U
+    d$U_category    <- combo$U_category
+    d$Harvlim       <- combo$Harvlim
+    d$DisMort       <- combo$DisMort
+
+    prog()
+    d
+  }, future.seed = TRUE)
+})
 
 # ── Assemble and save ─────────────────────────────────────────────────────────
 walleye_simulations_df <- bind_rows(results_list)

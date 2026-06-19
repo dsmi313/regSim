@@ -172,3 +172,49 @@ test_that("burnin_years equals min(Ymax, Amax + 20)", {
   out <- do.call(run_population_simulation, c(inp, collect_full_output = FALSE))
   expect_equal(out$burnin_years, min(inp$Ymax, inp$Amax + 20))
 })
+
+test_that("fast path (collect_full_output=FALSE) gives same sim_df as full path at same seed", {
+  inp <- make_wc_inputs(nsim = 200)
+  set.seed(42)
+  out_full <- do.call(run_population_simulation, c(inp, list(collect_full_output = TRUE)))
+  set.seed(42)
+  out_fast <- do.call(run_population_simulation, c(inp, list(collect_full_output = FALSE)))
+  expect_equal(out_full$sim_df, out_fast$sim_df, tolerance = 1e-8)
+})
+
+test_that("fast path matches full path with DDR enabled", {
+  inp <- make_wc_inputs(nsim = 100)
+  set.seed(99)
+  out_full <- do.call(run_population_simulation,
+                      c(inp, list(collect_full_output = TRUE,
+                                  enable_ddr = TRUE, steepness = 0.7)))
+  set.seed(99)
+  out_fast <- do.call(run_population_simulation,
+                      c(inp, list(collect_full_output = FALSE,
+                                  enable_ddr = TRUE, steepness = 0.7)))
+  expect_equal(out_full$sim_df, out_fast$sim_df, tolerance = 1e-8)
+})
+
+test_that("fast path matches full path at U = 0 (MeanLengthHarvested is NA, not NaN)", {
+  inp   <- make_wc_inputs(nsim = 50)
+  inp$U <- 0.0
+  set.seed(77)
+  out_full <- do.call(run_population_simulation, c(inp, list(collect_full_output = TRUE)))
+  set.seed(77)
+  out_fast <- do.call(run_population_simulation, c(inp, list(collect_full_output = FALSE)))
+  expect_equal(out_full$sim_df, out_fast$sim_df, tolerance = 1e-8)
+  expect_true(all(is.na(out_full$sim_df$MeanLengthHarvested)))
+  expect_false(any(is.nan(out_full$sim_df$MeanLengthHarvested)))
+})
+
+test_that("fast path sim_df columns are finite and biologically plausible", {
+  set.seed(7)
+  inp <- make_wc_inputs(nsim = 50)
+  out <- do.call(run_population_simulation, c(inp, list(collect_full_output = FALSE)))
+  df  <- out$sim_df
+  expect_true(all(is.finite(df$SPR)))
+  expect_true(all(df$SPR    >= 0))
+  expect_true(all(df$YPR    >= 0, na.rm = TRUE))
+  expect_true(all(df$Prop   >= 0 & df$Prop   <= 1, na.rm = TRUE))
+  expect_true(all(df$Recruit > 0, na.rm = TRUE))
+})

@@ -12,13 +12,20 @@ test_that("white crappie moderate matches the species default", {
   expect_equal(gp$nat_mort, 0.374)
 })
 
-test_that("each preset sets nat_mort equal to vbk (M = K convention)", {
-  species <- c("white_crappie", "black_crappie", "walleye",
-               "lmb", "smb", "channel_catfish", "blue_catfish")
-  for (sp in species) {
+test_that("crappie presets use M = K convention", {
+  for (sp in c("white_crappie", "black_crappie")) {
     for (pr in c("slow", "moderate", "fast")) {
       gp <- get_growth_preset(sp, pr)
       expect_equal(gp$nat_mort, gp$vbk, info = paste(sp, pr))
+    }
+  }
+})
+
+test_that("non-crappie presets use M = 1.5 * K convention", {
+  for (sp in c("walleye", "lmb", "smb", "channel_catfish", "blue_catfish")) {
+    for (pr in c("slow", "moderate", "fast")) {
+      gp <- get_growth_preset(sp, pr)
+      expect_equal(gp$nat_mort, 1.5 * gp$vbk, info = paste(sp, pr))
     }
   }
 })

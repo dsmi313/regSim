@@ -46,13 +46,15 @@ species_config <- list(
     rds          = "scripts/crappie_sim_results.rds",
     scen_levels  = c(
       "Min. length 254 mm (10 in.)",
-      "Min. length 305 mm (12 in.)",
-      "Protective slot 254-305 mm"
+      "Max. length 305 mm (12 in.)",
+      "No regulation",
+      "Slot 254-356 mm (10-14 in.)"
     ),
     scen_colors  = c(
       "Min. length 254 mm (10 in.)" = "#1b7837",
-      "Min. length 305 mm (12 in.)" = "#762a83",
-      "Protective slot 254-305 mm"  = "#d6604d"
+      "Max. length 305 mm (12 in.)" = "#762a83",
+      "No regulation"               = "#878787",
+      "Slot 254-356 mm (10-14 in.)" = "#d6604d"
     ),
     growth_filter = "moderate",
     target_U      = c(0.30, 0.50, 0.70)
