@@ -85,13 +85,13 @@ scen2_slot_type   <- "traditional"
 scen2_slot_upper  <- NA_real_
 scen2_DisMort     <- 0.09
 
-# Scenario 3: Maximum length limit 356 mm (14 in.)
-# Fish above 14" must be released; only sub-memorable fish are harvestable.
-# Illustrates growth overfishing — large, highly fecund fish are protected
-# but the harvestable window is narrow, so high exploitation of sub-quality
-# fish can suppress YPR and proportional stock density.
+# Scenario 3: Maximum length limit 356 mm (14 in.), no minimum.
+# All fish up to 14" may be harvested; fish > 14" must be released.
+# No minimum length — illustrates growth overfishing: removing fish before
+# they reach maximum size depresses YPR and egg production even though
+# large individuals are protected.
 scen3_name            <- "Max. length 356 mm (14 in.)"
-scen3_Harvlim         <- 254            # 10 in. minimum still applies
+scen3_Harvlim         <- 0              # no minimum length limit
 scen3_enable_slot     <- FALSE
 scen3_slot_type       <- "traditional"
 scen3_slot_upper      <- NA_real_
