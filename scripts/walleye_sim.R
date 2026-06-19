@@ -134,54 +134,71 @@ rownames(combos) <- NULL
 
 n_combos <- nrow(combos)  # 27
 
+# ── Pre-compute cached inputs (bins and gmat depend only on growth_preset;
+#    vc depends on scenario × growth_preset but NOT on U) ─────────────────────
+growth_presets_list <- list(
+  slow     = growth_slow,
+  moderate = growth_moderate,
+  fast     = growth_fast
+)
+
+bins_cache <- vector("list", length(growth_presets_list))
+names(bins_cache) <- names(growth_presets_list)
+gmat_cache <- vector("list", length(growth_presets_list))
+names(gmat_cache) <- names(growth_presets_list)
+
+for (gp in names(growth_presets_list)) {
+  g <- growth_presets_list[[gp]]
+  bins_cache[[gp]] <- make_length_bins(Linf = g$linf)
+  gmat_cache[[gp]] <- make_growth_matrix(
+    Linf          = g$linf,
+    vbk           = g$vbk,
+    t0            = g$t0,
+    bin_midpoints = bins_cache[[gp]]$bin_midpoints,
+    length_bins   = bins_cache[[gp]]$length_bins,
+    growth_cv     = 0.20
+  )
+}
+
+vc_cache <- list()
+for (i in seq_len(nrow(combos))) {
+  combo <- combos[i, ]
+  key   <- paste(combo$scenario, combo$growth_preset, sep = "\n")
+  if (is.null(vc_cache[[key]])) {
+    vc_cache[[key]] <- make_vulnerability_curves(
+      bin_midpoints  = bins_cache[[combo$growth_preset]]$bin_midpoints,
+      Capsize        = sp$capsize,
+      Harvlim        = combo$Harvlim,
+      mat_size       = sp$mat_size,
+      memorable_size = sp$memorable_size,
+      wl_a           = sp$wl_a,
+      wl_b           = sp$wl_b,
+      nat_mort       = growth_presets_list[[combo$growth_preset]]$nat_mort,
+      fec_exp        = sp$fec_exp,
+      enable_slot    = combo$enable_slot,
+      slot_type      = combo$slot_type,
+      slot_upper     = if (!is.na(combo$slot_upper)) combo$slot_upper else NULL
+    )
+  }
+}
+
 cat("Walleye simulation\n")
 cat("  Combinations :", n_combos, "(3 scenarios x 3 growth x 3 U)\n")
-cat("  Replicates   :", nsim, "per combination\n")
-cat("  Total ticks  :", n_combos * nsim, "\n\n")
+cat("  Replicates   :", nsim, "per combination\n\n")
 
 # ── Main simulation loop ──────────────────────────────────────────────────────
-pbar <- pbar_init(n_combos * nsim)
+pbar <- pbar_init(n_combos)
 
 results_list <- vector("list", n_combos)
 
 for (i in seq_len(n_combos)) {
 
   combo <- combos[i, ]
+  key   <- paste(combo$scenario, combo$growth_preset, sep = "\n")
 
-  growth <- switch(combo$growth_preset,
-    slow     = growth_slow,
-    moderate = growth_moderate,
-    fast     = growth_fast
-  )
-
-  # ── Step 1: Length bins ───────────────────────────────────────────────────
-  bins <- make_length_bins(Linf = growth$linf)
-
-  # ── Step 2: Growth matrix + recruit distribution ──────────────────────────
-  gmat <- make_growth_matrix(
-    Linf          = growth$linf,
-    vbk           = growth$vbk,
-    t0            = growth$t0,
-    bin_midpoints = bins$bin_midpoints,
-    length_bins   = bins$length_bins,
-    growth_cv     = 0.20
-  )
-
-  # ── Step 3: Vulnerability and life-history curves ─────────────────────────
-  vc <- make_vulnerability_curves(
-    bin_midpoints  = bins$bin_midpoints,
-    Capsize        = sp$capsize,
-    Harvlim        = combo$Harvlim,
-    mat_size       = sp$mat_size,
-    memorable_size = sp$memorable_size,
-    wl_a           = sp$wl_a,
-    wl_b           = sp$wl_b,
-    nat_mort       = growth$nat_mort,
-    fec_exp        = sp$fec_exp,
-    enable_slot    = combo$enable_slot,
-    slot_type      = combo$slot_type,
-    slot_upper     = if (!is.na(combo$slot_upper)) combo$slot_upper else NULL
-  )
+  bins <- bins_cache[[combo$growth_preset]]
+  gmat <- gmat_cache[[combo$growth_preset]]
+  vc   <- vc_cache[[key]]
 
   # ── Step 4: Population simulation ─────────────────────────────────────────
   sim_out <- run_population_simulation(
@@ -202,8 +219,7 @@ for (i in seq_len(n_combos)) {
     U                   = combo$U,
     DisMort             = combo$DisMort,
     nsim                = nsim,
-    collect_full_output = FALSE,
-    progress_fn         = function(k, n) suppressWarnings(pbar$tick())
+    collect_full_output = FALSE
   )
 
   # ── Step 5: Tag with metadata ─────────────────────────────────────────────
@@ -218,6 +234,7 @@ for (i in seq_len(n_combos)) {
   d$DisMort       <- combo$DisMort
 
   results_list[[i]] <- d
+  pbar$tick()
 }
 
 # ── Assemble and save ─────────────────────────────────────────────────────────
