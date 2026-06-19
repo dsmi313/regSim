@@ -30,21 +30,16 @@
 #                                lmb_simulations_df)
 
 library(regSim)
-library(progress)
+library(future.apply)
+library(progressr)
 library(dplyr)
 
-# ── Progress bar ──────────────────────────────────────────────────────────────
-pbar_init <- function(x) {
-  progress_bar$new(
-    format     = "(:spin) [:bar] :percent [Elapsed time: :elapsedfull || You got this long: :eta]",
-    total      = x,
-    complete   = "\U0398",
-    incomplete = "\U03A6",
-    current    = "\U0394",
-    clear      = FALSE,
-    width      = 100
-  )
-}
+plan(multicore, workers = parallelly::availableCores())
+handlers(handler_progress(
+  format = "(:spin) [:bar] :percent [Elapsed time: :elapsedfull || ETA: :eta]",
+  clear  = FALSE,
+  width  = 100
+))
 
 # ── Species preset ────────────────────────────────────────────────────────────
 # wl_a = 6.63e-6, wl_b = 3.10  (W in kg, L in mm)
@@ -187,55 +182,51 @@ cat("  Combinations :", n_combos, "(3 scenarios x 3 growth x 3 U)\n")
 cat("  Replicates   :", nsim, "per combination\n\n")
 
 # ── Main simulation loop ──────────────────────────────────────────────────────
-pbar <- pbar_init(n_combos)
+results_list <- with_progress({
+  p <- progressr::progressor(steps = n_combos)
+  future_lapply(seq_len(n_combos), function(i) {
+    combo <- combos[i, ]
+    key   <- paste(combo$scenario, combo$growth_preset, sep = "\n")
 
-results_list <- vector("list", n_combos)
+    bins <- bins_cache[[combo$growth_preset]]
+    gmat <- gmat_cache[[combo$growth_preset]]
+    vc   <- vc_cache[[key]]
 
-for (i in seq_len(n_combos)) {
+    sim_out <- run_population_simulation(
+      bin_midpoints       = bins$bin_midpoints,
+      length_bins         = bins$length_bins,
+      Growth_matrix       = gmat$Growth_matrix,
+      recruit_dist        = gmat$recruit_dist,
+      Vulcap_bins         = vc$Vulcap_bins,
+      Vulharv_bins        = vc$Vulharv_bins,
+      trophyvul_bins      = vc$trophyvul_bins,
+      Fec_bins            = vc$Fec_bins,
+      Wt_bins             = vc$Wt_bins,
+      S_bins              = vc$S_bins,
+      Amax                = sp$amax,
+      Ymax                = sp$ymax,
+      Ro                  = Ro,
+      rec_cv              = sp$rec_cv,
+      U                   = combo$U,
+      DisMort             = combo$DisMort,
+      nsim                = nsim,
+      collect_full_output = FALSE
+    )
 
-  combo <- combos[i, ]
-  key   <- paste(combo$scenario, combo$growth_preset, sep = "\n")
+    d               <- sim_out$sim_df
+    d$species       <- "walleye"
+    d$scenario      <- combo$scenario
+    d$growth_preset <- combo$growth_preset
+    d$U_label       <- combo$U_label
+    d$U             <- combo$U
+    d$U_category    <- combo$U_category
+    d$Harvlim       <- combo$Harvlim
+    d$DisMort       <- combo$DisMort
 
-  bins <- bins_cache[[combo$growth_preset]]
-  gmat <- gmat_cache[[combo$growth_preset]]
-  vc   <- vc_cache[[key]]
-
-  # ── Step 4: Population simulation ─────────────────────────────────────────
-  sim_out <- run_population_simulation(
-    bin_midpoints       = bins$bin_midpoints,
-    length_bins         = bins$length_bins,
-    Growth_matrix       = gmat$Growth_matrix,
-    recruit_dist        = gmat$recruit_dist,
-    Vulcap_bins         = vc$Vulcap_bins,
-    Vulharv_bins        = vc$Vulharv_bins,
-    trophyvul_bins      = vc$trophyvul_bins,
-    Fec_bins            = vc$Fec_bins,
-    Wt_bins             = vc$Wt_bins,
-    S_bins              = vc$S_bins,
-    Amax                = sp$amax,
-    Ymax                = sp$ymax,
-    Ro                  = Ro,
-    rec_cv              = sp$rec_cv,
-    U                   = combo$U,
-    DisMort             = combo$DisMort,
-    nsim                = nsim,
-    collect_full_output = FALSE
-  )
-
-  # ── Step 5: Tag with metadata ─────────────────────────────────────────────
-  d               <- sim_out$sim_df
-  d$species       <- "walleye"
-  d$scenario      <- combo$scenario
-  d$growth_preset <- combo$growth_preset
-  d$U_label       <- combo$U_label
-  d$U             <- combo$U
-  d$U_category    <- combo$U_category
-  d$Harvlim       <- combo$Harvlim
-  d$DisMort       <- combo$DisMort
-
-  results_list[[i]] <- d
-  pbar$tick()
-}
+    p()
+    d
+  }, future.seed = TRUE)
+})
 
 # ── Assemble and save ─────────────────────────────────────────────────────────
 walleye_simulations_df <- bind_rows(results_list)
