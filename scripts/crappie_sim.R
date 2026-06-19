@@ -76,45 +76,59 @@ scen1_slot_type   <- "traditional"   # slot args are ignored when enable_slot=FA
 scen1_slot_upper  <- NA_real_
 scen1_DisMort     <- 0.09            # 9% release mortality (Smith et al. 2025)
 
-# Scenario 2: Minimum length 305 mm (12 in.)
-# More restrictive alternative; lets sub-quality fish survive to trophy size.
-scen2_name        <- "Min. length 305 mm (12 in.)"
-scen2_Harvlim     <- 305
-scen2_enable_slot <- FALSE
-scen2_slot_type   <- "traditional"
-scen2_slot_upper  <- NA_real_
-scen2_DisMort     <- 0.09
-
-# Scenario 3: Maximum length limit 305 mm (12 in.), no minimum.
+# Scenario 2: Maximum length limit 305 mm (12 in.), no minimum.
 # All fish up to 12" may be harvested; fish > 12" must be released.
-# No minimum length — illustrates growth overfishing: removing fish before
-# they reach maximum size depresses YPR and egg production even though
-# large individuals are protected.
-scen3_name            <- "Max. length 305 mm (12 in.)"
-scen3_Harvlim         <- 0              # no minimum length limit
-scen3_enable_slot     <- FALSE
-scen3_slot_type       <- "traditional"
-scen3_slot_upper      <- NA_real_
-scen3_enable_max      <- TRUE
-scen3_max_size        <- 305            # 12 in. = 304.8 mm → 305 mm
-scen3_DisMort         <- 0.09
+# Illustrates growth overfishing — large fecund fish are protected but
+# removing sub-quality fish before they reach full size suppresses YPR
+# and egg production.
+scen2_name            <- "Max. length 305 mm (12 in.)"
+scen2_Harvlim         <- 0
+scen2_enable_slot     <- FALSE
+scen2_slot_type       <- "traditional"
+scen2_slot_upper      <- NA_real_
+scen2_enable_max      <- TRUE
+scen2_max_size        <- 305
+scen2_DisMort         <- 0.09
+
+# Scenario 3: No regulation.
+# Common in many crappie fisheries; all fish are harvestable regardless of
+# size. Serves as an unregulated baseline — expect lower SPR and YPR at
+# high exploitation relative to size-limit scenarios.
+scen3_name        <- "No regulation"
+scen3_Harvlim     <- 0
+scen3_enable_slot <- FALSE
+scen3_slot_type   <- "traditional"
+scen3_slot_upper  <- NA_real_
+scen3_DisMort     <- 0.09
+
+# Scenario 4: Traditional slot 254-356 mm (10-14 in.)
+# Fish within the 10-14" slot are harvestable; fish below 10" or above 14"
+# must be released. Under live-sonar exploitation, the slot concentrates
+# harvest pressure on quality-class fish while protecting the smallest and
+# largest individuals. Relevant as a proposed response to live-imaging sonar.
+scen4_name        <- "Slot 254-356 mm (10-14 in.)"
+scen4_Harvlim     <- 254
+scen4_enable_slot <- TRUE
+scen4_slot_type   <- "traditional"     # fish WITHIN [Harvlim, slot_upper] are harvestable
+scen4_slot_upper  <- 356              # 14 in. = 355.6 mm → 356 mm
+scen4_DisMort     <- 0.09
 
 # ── Scenario table ────────────────────────────────────────────────────────────
 scen_params <- data.frame(
-  scenario         = c(scen1_name,        scen2_name,        scen3_name),
-  Harvlim          = c(scen1_Harvlim,     scen2_Harvlim,     scen3_Harvlim),
-  enable_slot      = c(scen1_enable_slot, scen2_enable_slot, scen3_enable_slot),
-  slot_type        = c(scen1_slot_type,   scen2_slot_type,   scen3_slot_type),
-  slot_upper       = c(scen1_slot_upper,  scen2_slot_upper,  scen3_slot_upper),
-  enable_max_limit = c(FALSE,             FALSE,             scen3_enable_max),
-  max_harvest_size = c(NA_real_,          NA_real_,          scen3_max_size),
-  DisMort          = c(scen1_DisMort,     scen2_DisMort,     scen3_DisMort),
+  scenario         = c(scen1_name,        scen2_name,        scen3_name,        scen4_name),
+  Harvlim          = c(scen1_Harvlim,     scen2_Harvlim,     scen3_Harvlim,     scen4_Harvlim),
+  enable_slot      = c(scen1_enable_slot, scen2_enable_slot, scen3_enable_slot, scen4_enable_slot),
+  slot_type        = c(scen1_slot_type,   scen2_slot_type,   scen3_slot_type,   scen4_slot_type),
+  slot_upper       = c(scen1_slot_upper,  scen2_slot_upper,  scen3_slot_upper,  scen4_slot_upper),
+  enable_max_limit = c(FALSE,             scen2_enable_max,  FALSE,             FALSE),
+  max_harvest_size = c(NA_real_,          scen2_max_size,    NA_real_,          NA_real_),
+  DisMort          = c(scen1_DisMort,     scen2_DisMort,     scen3_DisMort,     scen4_DisMort),
   stringsAsFactors = FALSE
 )
 
 growth_labels <- c("slow", "moderate", "fast")
 
-# Full crossing: 3 scenarios × 3 growth × 3 U = 27 combinations
+# Full crossing: 4 scenarios × 3 growth × 3 U = 36 combinations
 combos <- merge(
   merge(scen_params,
         data.frame(growth_preset = growth_labels, stringsAsFactors = FALSE),
@@ -125,10 +139,10 @@ combos <- merge(
 combos <- combos[order(combos$scenario, combos$growth_preset, combos$U), ]
 rownames(combos) <- NULL
 
-n_combos <- nrow(combos)  # 27
+n_combos <- nrow(combos)  # 36
 
 cat("White crappie simulation\n")
-cat("  Combinations :", n_combos, "(3 scenarios x 3 growth x 3 U)\n")
+cat("  Combinations :", n_combos, "(4 scenarios x 3 growth x 3 U)\n")
 cat("  Replicates   :", nsim, "per combination\n")
 cat("  Total ticks  :", n_combos * nsim, "\n\n")
 
