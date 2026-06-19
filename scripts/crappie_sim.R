@@ -85,26 +85,30 @@ scen2_slot_type   <- "traditional"
 scen2_slot_upper  <- NA_real_
 scen2_DisMort     <- 0.09
 
-# Scenario 3: Protective slot 254–305 mm (10–12 in.)
-# Protects the 10–12" quality class from harvest; fish outside the slot
-# (< 10" or > 12" trophy fish) remain harvestable. Under elevated exploitation
-# from live-sonar use, a high proportion of quality-class fish are contacted,
-# so low release mortality is critical for this regulation to function.
-scen3_name        <- "Protective slot 254-305 mm"
-scen3_Harvlim     <- 254
-scen3_enable_slot <- TRUE
-scen3_slot_type   <- "protective"    # protect fish WITHIN [Harvlim, slot_upper]
-scen3_slot_upper  <- 305
-scen3_DisMort     <- 0.09
+# Scenario 3: Maximum length limit 356 mm (14 in.), no minimum.
+# All fish up to 14" may be harvested; fish > 14" must be released.
+# No minimum length — illustrates growth overfishing: removing fish before
+# they reach maximum size depresses YPR and egg production even though
+# large individuals are protected.
+scen3_name            <- "Max. length 356 mm (14 in.)"
+scen3_Harvlim         <- 0              # no minimum length limit
+scen3_enable_slot     <- FALSE
+scen3_slot_type       <- "traditional"
+scen3_slot_upper      <- NA_real_
+scen3_enable_max      <- TRUE
+scen3_max_size        <- 356            # 14 in. = 355.6 mm → 356 mm
+scen3_DisMort         <- 0.09
 
 # ── Scenario table ────────────────────────────────────────────────────────────
 scen_params <- data.frame(
-  scenario    = c(scen1_name,        scen2_name,        scen3_name),
-  Harvlim     = c(scen1_Harvlim,     scen2_Harvlim,     scen3_Harvlim),
-  enable_slot = c(scen1_enable_slot, scen2_enable_slot, scen3_enable_slot),
-  slot_type   = c(scen1_slot_type,   scen2_slot_type,   scen3_slot_type),
-  slot_upper  = c(scen1_slot_upper,  scen2_slot_upper,  scen3_slot_upper),
-  DisMort     = c(scen1_DisMort,     scen2_DisMort,     scen3_DisMort),
+  scenario         = c(scen1_name,        scen2_name,        scen3_name),
+  Harvlim          = c(scen1_Harvlim,     scen2_Harvlim,     scen3_Harvlim),
+  enable_slot      = c(scen1_enable_slot, scen2_enable_slot, scen3_enable_slot),
+  slot_type        = c(scen1_slot_type,   scen2_slot_type,   scen3_slot_type),
+  slot_upper       = c(scen1_slot_upper,  scen2_slot_upper,  scen3_slot_upper),
+  enable_max_limit = c(FALSE,             FALSE,             scen3_enable_max),
+  max_harvest_size = c(NA_real_,          NA_real_,          scen3_max_size),
+  DisMort          = c(scen1_DisMort,     scen2_DisMort,     scen3_DisMort),
   stringsAsFactors = FALSE
 )
 
@@ -164,18 +168,20 @@ for (i in seq_len(n_combos)) {
   # Returns: Vulcap_bins (capture), Vulharv_bins (harvest), trophyvul_bins,
   #          Fec_bins (fecundity), Wt_bins (weight kg), S_bins (annual survival)
   vc <- make_vulnerability_curves(
-    bin_midpoints  = bins$bin_midpoints,
-    Capsize        = sp$capsize,
-    Harvlim        = combo$Harvlim,
-    mat_size       = sp$mat_size,
-    memorable_size = sp$memorable_size,
-    wl_a           = sp$wl_a,
-    wl_b           = sp$wl_b,
-    nat_mort       = growth$nat_mort,
-    fec_exp        = sp$fec_exp,
-    enable_slot    = combo$enable_slot,
-    slot_type      = combo$slot_type,
-    slot_upper     = if (!is.na(combo$slot_upper)) combo$slot_upper else NULL
+    bin_midpoints    = bins$bin_midpoints,
+    Capsize          = sp$capsize,
+    Harvlim          = combo$Harvlim,
+    mat_size         = sp$mat_size,
+    memorable_size   = sp$memorable_size,
+    wl_a             = sp$wl_a,
+    wl_b             = sp$wl_b,
+    nat_mort         = growth$nat_mort,
+    fec_exp          = sp$fec_exp,
+    enable_slot      = combo$enable_slot,
+    slot_type        = combo$slot_type,
+    slot_upper       = if (!is.na(combo$slot_upper)) combo$slot_upper else NULL,
+    enable_max_limit = isTRUE(combo$enable_max_limit),
+    max_harvest_size = if (!is.na(combo$max_harvest_size)) combo$max_harvest_size else NULL
   )
 
   # ── Step 4: Population simulation ─────────────────────────────────────────
