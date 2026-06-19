@@ -195,7 +195,11 @@ cat("  Replicates   :", nsim, "per combination\n\n")
 #   SPR = stock egg production relative to the unfished equilibrium
 #         (stochastic; may exceed 1 in favourable recruitment years)
 results_list <- with_progress({
-  p <- progressr::progressor(steps = n_combos)
+  # NB: do not name this `p` — with_progress() evaluates this block in the
+  # caller's environment, so `p` would leak into .GlobalEnv and shadow
+  # shiny::p() (the <p> tag), breaking any Shiny app launched in the same
+  # session.
+  prog <- progressr::progressor(steps = n_combos)
   future_lapply(seq_len(n_combos), function(i) {
     combo <- combos[i, ]
     key   <- paste(combo$scenario, combo$growth_preset, sep = "\n")
@@ -235,7 +239,7 @@ results_list <- with_progress({
     d$Harvlim       <- combo$Harvlim
     d$DisMort       <- combo$DisMort
 
-    p()
+    prog()
     d
   }, future.seed = TRUE)
 })
