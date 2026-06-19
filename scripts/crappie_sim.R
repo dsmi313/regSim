@@ -76,14 +76,19 @@ scen1_slot_type   <- "traditional"   # slot args are ignored when enable_slot=FA
 scen1_slot_upper  <- NA_real_
 scen1_DisMort     <- 0.09            # 9% release mortality (Smith et al. 2025)
 
-# Scenario 2: Minimum length 305 mm (12 in.)
-# More restrictive alternative; lets sub-quality fish survive to trophy size.
-scen2_name        <- "Min. length 305 mm (12 in.)"
-scen2_Harvlim     <- 305
-scen2_enable_slot <- FALSE
-scen2_slot_type   <- "traditional"
-scen2_slot_upper  <- NA_real_
-scen2_DisMort     <- 0.09
+# Scenario 2: Maximum length limit 305 mm (12 in.), no minimum.
+# All fish up to 12" may be harvested; fish > 12" must be released.
+# Illustrates growth overfishing — large fecund fish are protected but
+# removing sub-quality fish before they reach full size suppresses YPR
+# and egg production.
+scen2_name            <- "Max. length 305 mm (12 in.)"
+scen2_Harvlim         <- 0
+scen2_enable_slot     <- FALSE
+scen2_slot_type       <- "traditional"
+scen2_slot_upper      <- NA_real_
+scen2_enable_max      <- TRUE
+scen2_max_size        <- 305
+scen2_DisMort         <- 0.09
 
 # Scenario 3: No regulation.
 # Common in many crappie fisheries; all fish are harvestable regardless of
@@ -110,12 +115,14 @@ scen4_DisMort     <- 0.09
 
 # ── Scenario table ────────────────────────────────────────────────────────────
 scen_params <- data.frame(
-  scenario    = c(scen1_name,        scen2_name,        scen3_name,        scen4_name),
-  Harvlim     = c(scen1_Harvlim,     scen2_Harvlim,     scen3_Harvlim,     scen4_Harvlim),
-  enable_slot = c(scen1_enable_slot, scen2_enable_slot, scen3_enable_slot, scen4_enable_slot),
-  slot_type   = c(scen1_slot_type,   scen2_slot_type,   scen3_slot_type,   scen4_slot_type),
-  slot_upper  = c(scen1_slot_upper,  scen2_slot_upper,  scen3_slot_upper,  scen4_slot_upper),
-  DisMort     = c(scen1_DisMort,     scen2_DisMort,     scen3_DisMort,     scen4_DisMort),
+  scenario         = c(scen1_name,        scen2_name,        scen3_name,        scen4_name),
+  Harvlim          = c(scen1_Harvlim,     scen2_Harvlim,     scen3_Harvlim,     scen4_Harvlim),
+  enable_slot      = c(scen1_enable_slot, scen2_enable_slot, scen3_enable_slot, scen4_enable_slot),
+  slot_type        = c(scen1_slot_type,   scen2_slot_type,   scen3_slot_type,   scen4_slot_type),
+  slot_upper       = c(scen1_slot_upper,  scen2_slot_upper,  scen3_slot_upper,  scen4_slot_upper),
+  enable_max_limit = c(FALSE,             scen2_enable_max,  FALSE,             FALSE),
+  max_harvest_size = c(NA_real_,          scen2_max_size,    NA_real_,          NA_real_),
+  DisMort          = c(scen1_DisMort,     scen2_DisMort,     scen3_DisMort,     scen4_DisMort),
   stringsAsFactors = FALSE
 )
 
@@ -175,18 +182,20 @@ for (i in seq_len(n_combos)) {
   # Returns: Vulcap_bins (capture), Vulharv_bins (harvest), trophyvul_bins,
   #          Fec_bins (fecundity), Wt_bins (weight kg), S_bins (annual survival)
   vc <- make_vulnerability_curves(
-    bin_midpoints  = bins$bin_midpoints,
-    Capsize        = sp$capsize,
-    Harvlim        = combo$Harvlim,
-    mat_size       = sp$mat_size,
-    memorable_size = sp$memorable_size,
-    wl_a           = sp$wl_a,
-    wl_b           = sp$wl_b,
-    nat_mort       = growth$nat_mort,
-    fec_exp        = sp$fec_exp,
-    enable_slot    = combo$enable_slot,
-    slot_type      = combo$slot_type,
-    slot_upper     = if (!is.na(combo$slot_upper)) combo$slot_upper else NULL
+    bin_midpoints    = bins$bin_midpoints,
+    Capsize          = sp$capsize,
+    Harvlim          = combo$Harvlim,
+    mat_size         = sp$mat_size,
+    memorable_size   = sp$memorable_size,
+    wl_a             = sp$wl_a,
+    wl_b             = sp$wl_b,
+    nat_mort         = growth$nat_mort,
+    fec_exp          = sp$fec_exp,
+    enable_slot      = combo$enable_slot,
+    slot_type        = combo$slot_type,
+    slot_upper       = if (!is.na(combo$slot_upper)) combo$slot_upper else NULL,
+    enable_max_limit = isTRUE(combo$enable_max_limit),
+    max_harvest_size = if (!is.na(combo$max_harvest_size)) combo$max_harvest_size else NULL
   )
 
   # ── Step 4: Population simulation ─────────────────────────────────────────
