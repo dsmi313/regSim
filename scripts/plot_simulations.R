@@ -112,7 +112,29 @@ make_species_plots <- function(cfg) {
                   fast = "Fast growth")
 
   # ---- Load + factor ordering --------------------------------------------
-  sim_df <- readRDS(cfg$rds) |>
+  sim_df <- readRDS(cfg$rds)
+
+  # Fail loudly and clearly if the .rds is stale / from an older sim run,
+  # instead of the cryptic "object 'growth_preset' not found" that dplyr
+  # throws downstream when a referenced column is absent.
+  required_cols <- c("scenario", "growth_preset", "U", "U_label", "U_category",
+                     "SPR", "YPR", "Prop", "MeanLengthHarvested")
+  missing_cols  <- setdiff(required_cols, names(sim_df))
+  if (length(missing_cols) > 0) {
+    stop(sprintf(
+      paste0("%s is missing required column(s): %s\n",
+             "  Columns found    : %s\n",
+             "  Working directory: %s\n",
+             "  The .rds being read is stale or from an older sim run. ",
+             "Re-run the matching scripts/*_sim.R to regenerate it."),
+      cfg$rds,
+      paste(missing_cols, collapse = ", "),
+      paste(names(sim_df), collapse = ", "),
+      normalizePath(getwd())),
+      call. = FALSE)
+  }
+
+  sim_df <- sim_df |>
     mutate(
       scenario      = factor(scenario,      levels = cfg$scen_levels),
       growth_preset = factor(growth_preset, levels = growth_levels),
