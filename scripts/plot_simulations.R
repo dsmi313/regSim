@@ -25,7 +25,8 @@ library(ggplot2)
 # ===========================================================================
 
 # Set TRUE to write every figure for every species to scripts/ as PNG.
-save_plots <- FALSE
+# Respect a value set before sourcing (e.g. `save_plots <- TRUE; source(...)`).
+if (!exists("save_plots")) save_plots <- FALSE
 
 # Shared factor orders (same across species).
 growth_levels <- c("slow", "moderate", "fast")
@@ -135,7 +136,7 @@ make_species_plots <- function(cfg) {
   }
 
   sim_df <- sim_df |>
-    mutate(
+    dplyr::mutate(
       scenario      = factor(scenario,      levels = cfg$scen_levels),
       growth_preset = factor(growth_preset, levels = growth_levels),
       U_category    = factor(U_category,    levels = Ucat_levels)
@@ -143,9 +144,9 @@ make_species_plots <- function(cfg) {
 
   # ---- Summary table (mean / IQR / 5th-95th per combo) -------------------
   summary_df <- sim_df |>
-    group_by(scenario, growth_preset, U, U_label, U_category) |>
-    summarise(
-      n          = n(),
+    dplyr::group_by(scenario, growth_preset, U, U_label, U_category) |>
+    dplyr::summarise(
+      n          = dplyr::n(),
       # SPR (egg production relative to unfished equilibrium)
       SPR_mean   = mean(SPR),
       SPR_med    = median(SPR),
@@ -230,9 +231,9 @@ make_species_plots <- function(cfg) {
 
   # ── Violin data: target U levels at one growth preset ───────────────────
   violin_df <- sim_df |>
-    filter(U %in% cfg$target_U, growth_preset == cfg$growth_filter) |>
-    mutate(U_facet = factor(paste0("U = ", U),
-                            levels = paste0("U = ", sort(cfg$target_U))))
+    dplyr::filter(U %in% cfg$target_U, growth_preset == cfg$growth_filter) |>
+    dplyr::mutate(U_facet = factor(paste0("U = ", U),
+                                   levels = paste0("U = ", sort(cfg$target_U))))
 
   # ── Figure 4: SPR violins (stochastic; spread from recruitment) ─────────
   p_violin_spr <- ggplot(violin_df,
@@ -270,8 +271,8 @@ make_species_plots <- function(cfg) {
 
   # ── Figure 5: Mean SPR heat map ─────────────────────────────────────────
   heat_df <- sim_df |>
-    group_by(scenario, growth_preset, U_category) |>
-    summarise(SPR_mean = mean(SPR), .groups = "drop")
+    dplyr::group_by(scenario, growth_preset, U_category) |>
+    dplyr::summarise(SPR_mean = mean(SPR), .groups = "drop")
 
   p_heat <- ggplot(heat_df,
                    aes(x = U_category, y = scenario, fill = SPR_mean)) +

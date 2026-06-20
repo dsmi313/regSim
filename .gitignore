@@ -1,8 +1,9 @@
 # Generated simulation outputs (produced by scripts/*_sim.R)
 scripts/*_sim_results.rds
 
-# Generated figures (produced by scripts/plot_simulations.R with save_plots=TRUE)
+# Generated figures (produced by scripts/plot_simulations.R or make_figures.R)
 scripts/fig_*.png
+scripts/figures/
 
 # R session artifacts
 .Rhistory
