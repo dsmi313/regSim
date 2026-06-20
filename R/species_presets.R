@@ -34,7 +34,7 @@ get_species_preset <- function(species) {
       harvlim = 356,
       # nat_mort = vbk * 1.5 per Jensen (1996, CJFAS 53:820-822)
       linf = 683, vbk = 0.32, t0 = -0.52, nat_mort = 0.32 * 1.5,
-      rec_cv = 1.1, amax = 15, ymax = 135, capsize = 330,
+      rec_cv = 1.1, amax = 15, ymax = 135, capsize = 300,
       fec_exp = 1.18,
       label = "Loaded Walleye parameters (FishBase median)"
     ),
@@ -43,7 +43,7 @@ get_species_preset <- function(species) {
       harvlim = 305,
       # nat_mort = vbk * 1.5 per Jensen (1996, CJFAS 53:820-822)
       linf = 584, vbk = 0.22, t0 = 0, nat_mort = 0.22 * 1.5,
-      rec_cv = 0.5, amax = 12, ymax = 132, capsize = 280,
+      rec_cv = 0.5, amax = 12, ymax = 132, capsize = 200,
       fec_exp = 1.18,
       label = "Loaded Largemouth Bass parameters (FishBase median)"
     ),
@@ -52,7 +52,7 @@ get_species_preset <- function(species) {
       harvlim = 305,
       # nat_mort = vbk * 1.5 per Jensen (1996, CJFAS 53:820-822)
       linf = 525, vbk = 0.17, t0 = -0.33, nat_mort = 0.17 * 1.5,
-      rec_cv = 0.7, amax = 12, ymax = 132, capsize = 280,
+      rec_cv = 0.7, amax = 12, ymax = 132, capsize = 200,
       fec_exp = 1.18,
       label = "Loaded Smallmouth Bass parameters (FishBase median)"
     ),
