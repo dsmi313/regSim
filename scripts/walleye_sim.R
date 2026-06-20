@@ -34,7 +34,11 @@ library(future.apply)
 library(progressr)
 library(dplyr)
 
-plan(multicore, workers = parallelly::availableCores())
+if (parallelly::supportsMulticore()) {
+  plan(multicore,    workers = parallelly::availableCores())
+} else {
+  plan(multisession, workers = parallelly::availableCores())
+}
 handlers(handler_progress(
   format = "(:spin) [:bar] :percent [Elapsed time: :elapsedfull || ETA: :eta]",
   clear  = FALSE,
