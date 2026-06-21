@@ -137,7 +137,7 @@ make_vulnerability_curves <- function(bin_midpoints,
     Vulharv_below_max <- 1 / (1 + exp((bin_midpoints - max_harvest_size) / 0.01))
     Vulharv_bins      <- Vulcap_bins * Vulharv_below_max
   } else {
-    Vulharv_bins <- 1 / (1 + exp(-(bin_midpoints - Harvlim) / HarvlimSD))
+    Vulharv_bins <- Vulcap_bins * (1 / (1 + exp(-(bin_midpoints - Harvlim) / HarvlimSD)))
   }
 
   trophyvul_bins <- (1 / (1 + exp(-(bin_midpoints - memorable_size) /
