@@ -140,8 +140,8 @@ make_vulnerability_curves <- function(bin_midpoints,
     Vulharv_bins <- Vulcap_bins * (1 / (1 + exp(-(bin_midpoints - Harvlim) / HarvlimSD)))
   }
 
-  trophyvul_bins <- (1 / (1 + exp(-(bin_midpoints - memorable_size) /
-                                   (memorable_size * 0.1)))) * Vulcap_bins
+  trophyvul_bins <- 1 / (1 + exp(-(bin_midpoints - memorable_size) /
+                                   (memorable_size * 0.1)))
 
   M_adult <- nat_mort
   M_bins  <- rep(M_adult, length(bin_midpoints))
