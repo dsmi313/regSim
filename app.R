@@ -15,7 +15,7 @@ source("R/uncertainty.R")
 
 # UI Definition
 ui <- fluidPage(
-  titlePanel("Age-Structured Population Model: YPR Analysis"),
+  titlePanel("Length-Structured Population Model: YPR Analysis"),
   
   sidebarLayout(
     sidebarPanel(
