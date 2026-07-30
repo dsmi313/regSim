@@ -21,11 +21,24 @@ test_that("crappie presets use M = K convention", {
   }
 })
 
-test_that("non-crappie presets use M = 1.5 * K convention", {
-  for (sp in c("walleye", "lmb", "smb", "channel_catfish", "blue_catfish")) {
+test_that("non-bass, non-crappie presets use M = 1.5 * K convention", {
+  # Black bass (lmb, smb) are excluded: they use a fixed species-median M from
+  # Beamesderfer and North (1995), not the Jensen M = 1.5 K default.
+  for (sp in c("walleye", "channel_catfish", "blue_catfish")) {
     for (pr in c("slow", "moderate", "fast")) {
       gp <- get_growth_preset(sp, pr)
       expect_equal(gp$nat_mort, 1.5 * gp$vbk, info = paste(sp, pr))
+    }
+  }
+})
+
+test_that("black bass presets use fixed species-median M (Beamesderfer & North 1995)", {
+  # M is constant across growth scenarios and independent of K.
+  fixed_m <- c(lmb = 0.46, smb = 0.43)
+  for (sp in c("lmb", "smb")) {
+    for (pr in c("slow", "moderate", "fast")) {
+      gp <- get_growth_preset(sp, pr)
+      expect_equal(gp$nat_mort, unname(fixed_m[[sp]]), info = paste(sp, pr))
     }
   }
 })

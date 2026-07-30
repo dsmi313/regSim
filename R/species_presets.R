@@ -41,8 +41,14 @@ get_species_preset <- function(species) {
     lmb = list(
       wl_a = 8.16e-6, wl_b = 3.10, mat_size = 203, memorable_size = 508,
       harvlim = 305,
-      # nat_mort = vbk * 1.5 per Jensen (1996, CJFAS 53:820-822)
-      linf = 584, vbk = 0.22, t0 = 0, nat_mort = 0.22 * 1.5,
+      # Fixed species-median M from Beamesderfer and North (1995, NAJFM
+      # 15:688-704, Table 2), NOT the Jensen M = 1.5 K default. B&N found no
+      # significant growth-mortality correlation for largemouth bass (N = 698)
+      # and showed growth-based M regressions run 23-35% low for this species,
+      # so Jensen's coefficient does not apply. Idaho catch-curve data (Frawley,
+      # IDFG) imply M/K ratios of 4.3-7.2, far outside Jensen's range. M and K
+      # remain independent, user-overridable inputs.
+      linf = 584, vbk = 0.22, t0 = 0, nat_mort = 0.46,
       rec_cv = 0.5, amax = 12, ymax = 132, capsize = 200,
       fec_exp = 1.18,
       label = "Loaded Largemouth Bass parameters (FishBase median)"
@@ -50,8 +56,14 @@ get_species_preset <- function(species) {
     smb = list(
       wl_a = 1.09e-5, wl_b = 3.08, mat_size = 254, memorable_size = 432,
       harvlim = 305,
-      # nat_mort = vbk * 1.5 per Jensen (1996, CJFAS 53:820-822)
-      linf = 525, vbk = 0.17, t0 = -0.33, nat_mort = 0.17 * 1.5,
+      # Fixed species-median M from Beamesderfer and North (1995, NAJFM
+      # 15:688-704, Table 2), NOT the Jensen M = 1.5 K default. B&N found no
+      # significant growth-mortality correlation for smallmouth bass (N = 409)
+      # and showed growth-based M regressions run 23-35% low for this species,
+      # so Jensen's coefficient does not apply. Idaho catch-curve data (Frawley,
+      # IDFG) imply M/K ratios of 4.3-7.2, far outside Jensen's range. M and K
+      # remain independent, user-overridable inputs.
+      linf = 525, vbk = 0.17, t0 = -0.33, nat_mort = 0.43,
       rec_cv = 0.7, amax = 12, ymax = 132, capsize = 200,
       fec_exp = 1.18,
       label = "Loaded Smallmouth Bass parameters (FishBase median)"

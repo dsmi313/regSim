@@ -3,9 +3,14 @@
 #' Returns von Bertalanffy growth parameters and the matching natural-mortality
 #' default for a given species under a slow, moderate, or fast growth scenario.
 #'
-#' Natural mortality defaults follow two conventions:
+#' Natural mortality defaults follow species-specific conventions:
 #' \itemize{
 #'   \item Crappie (white, black): \eqn{M = K} (Pauly 1980 approximation).
+#'   \item Largemouth and smallmouth bass: fixed literature-median instantaneous
+#'     M (0.46 and 0.43, respectively) from Beamesderfer and North (1995, N. Am.
+#'     J. Fish. Manage. 15:688-704, Table 2). A growth-based default is
+#'     deliberately \emph{not} used for these two species (see the note at the
+#'     \code{lmb}/\code{smb} entries below).
 #'   \item All other species: \eqn{M = 1.5 K}, the median ratio reported for
 #'     North American freshwater fishes by Jensen (1996, Can. J. Fish. Aquat.
 #'     Sci. 53:820-822).
@@ -40,15 +45,26 @@ get_growth_preset <- function(species, preset) {
       moderate = list(linf = 683, vbk = 0.32, t0 = -0.52, nat_mort = 0.32 * 1.5),
       fast     = list(linf = 615, vbk = 0.43, t0 = -0.20, nat_mort = 0.43 * 1.5)
     ),
+    # Black bass (lmb, smb): fixed species-median M from Beamesderfer and North
+    # (1995, NAJFM 15:688-704, Table 2), NOT the Jensen M = 1.5 K default used
+    # for the other non-crappie species. Jensen's 1.5 coefficient assumes a
+    # growth-mortality correlation that B&N found absent for both largemouth
+    # (N = 698) and smallmouth (N = 409) bass; they showed growth-based M
+    # regressions run 23-35% low for these species and are not appropriate for
+    # point estimates. Idaho catch-curve data (Frawley, IDFG) imply M/K ratios
+    # of 4.3-7.2 across three populations, far outside Jensen's applicable
+    # range. M is held constant across the slow/moderate/fast growth scenarios
+    # precisely because it does not scale with K for these species; K and M
+    # remain fully independent, user-overridable inputs.
     lmb = list(
-      slow     = list(linf = 638, vbk = 0.17, t0 = -0.21, nat_mort = 0.17 * 1.5),
-      moderate = list(linf = 584, vbk = 0.22, t0 =  0.00, nat_mort = 0.22 * 1.5),
-      fast     = list(linf = 540, vbk = 0.28, t0 =  0.10, nat_mort = 0.28 * 1.5)
+      slow     = list(linf = 638, vbk = 0.17, t0 = -0.21, nat_mort = 0.46),
+      moderate = list(linf = 584, vbk = 0.22, t0 =  0.00, nat_mort = 0.46),
+      fast     = list(linf = 540, vbk = 0.28, t0 =  0.10, nat_mort = 0.46)
     ),
     smb = list(
-      slow     = list(linf = 608, vbk = 0.14, t0 = -0.45, nat_mort = 0.14 * 1.5),
-      moderate = list(linf = 525, vbk = 0.17, t0 = -0.33, nat_mort = 0.17 * 1.5),
-      fast     = list(linf = 506, vbk = 0.22, t0 =  0.02, nat_mort = 0.22 * 1.5)
+      slow     = list(linf = 608, vbk = 0.14, t0 = -0.45, nat_mort = 0.43),
+      moderate = list(linf = 525, vbk = 0.17, t0 = -0.33, nat_mort = 0.43),
+      fast     = list(linf = 506, vbk = 0.22, t0 =  0.02, nat_mort = 0.43)
     ),
     channel_catfish = list(
       slow     = list(linf = 797, vbk = 0.12, t0 = -0.82, nat_mort = 0.12 * 1.5),

@@ -14,6 +14,12 @@ test_that("white crappie preset has correct biological parameters", {
   expect_equal(p$fec_exp,  1.27)
 })
 
+test_that("black bass use fixed species-median M (Beamesderfer & North 1995)", {
+  # Not the Jensen M = 1.5 * K default; M is independent of K for these species.
+  expect_equal(get_species_preset("lmb")$nat_mort, 0.46)
+  expect_equal(get_species_preset("smb")$nat_mort, 0.43)
+})
+
 test_that("crappie species use fec_exp = 1.27, all others use 1.18", {
   expect_equal(get_species_preset("white_crappie")$fec_exp, 1.27)
   expect_equal(get_species_preset("black_crappie")$fec_exp, 1.27)

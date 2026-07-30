@@ -296,7 +296,7 @@ ui <- fluidPage(
                    tags$li(strong("Density-dependent recruitment (DDR):"), "Optional Beverton-Holt stock-recruitment with configurable steepness"),
                    tags$li(strong("Size-based selectivity:"), "Logistic vulnerability curves for capture and harvest"),
                    tags$li(strong("Regulations:"), "Traditional slot limits, protective (reverse) slots, and maximum length limits"),
-                   tags$li(strong("Mortality:"), "Natural mortality (M) and configurable discard mortality. For non-crappie species M = 1.5K (Jensen 1996); for crappie M = K"),
+                   tags$li(strong("Mortality:"), "Natural mortality (M) and configurable discard mortality. Default M: black bass (largemouth = 0.46, smallmouth = 0.43) use fixed literature-median values (Beamesderfer & North 1995); crappie use M = K; other species use M = 1.5K (Jensen 1996). M is always a directly editable input."),
                    tags$li(strong("Stochastic recruitment:"), "Lognormal variability with species-specific CV"),
                    tags$li(strong("Fecundity:"), "Weight-based egg production scaled by logistic maturity ogive"),
                    tags$li(strong("MSY analysis:"), "Maximum Sustainable Yield calculated from equilibrium yield and recruitment curves")
@@ -322,7 +322,8 @@ ui <- fluidPage(
                  p("Froese, R. and D. Pauly. Editors. 2024. FishBase. World Wide Web electronic publication. ",
                    a(href = "https://www.fishbase.org", "www.fishbase.org")),
                  p("Gabelhouse, D.W., Jr. 1984. A length-categorization system to assess fish stocks. North American Journal of Fisheries Management 4:273-285."),
-                 p("Jensen, A.L. 1996. Beverton and Holt life history invariants result from optimal trade-off of reproduction and survival. Canadian Journal of Fisheries and Aquatic Sciences 53:820-822.")
+                 p("Jensen, A.L. 1996. Beverton and Holt life history invariants result from optimal trade-off of reproduction and survival. Canadian Journal of Fisheries and Aquatic Sciences 53:820-822."),
+                 p("Beamesderfer, R.C.P. and J.A. North. 1995. Growth, natural mortality, and predicted response to fishing for largemouth bass and smallmouth bass populations in North America. North American Journal of Fisheries Management 15:688-704. (Source of the fixed default M for largemouth and smallmouth bass; growth-based M regressions were found inappropriate for point estimates in these species.)")
         )
       )
     )
