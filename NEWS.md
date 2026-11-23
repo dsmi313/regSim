@@ -10,6 +10,8 @@
 * "Traditional slot" is now "harvest slot" throughout the app, code and
   scripts (`slot_type = "harvest"`). `slot_type = "traditional"` still works
   as the old name.
+* Adds `scripts/manuscript_figures.R`, which builds manuscript Figures 1-6
+  and Supplementary Table S1 from the case-study results.
 * Case-study scripts set a fixed seed so reruns reproduce the published
   numbers.
 
