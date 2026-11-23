@@ -1,14 +1,20 @@
 # scripts/manuscript_figures.R
 #
 # Builds manuscript Figures 1-6 (violin and line figures for White Crappie,
-# Walleye and Largemouth Bass) and Supplementary Table S1 from the .rds files
-# written by crappie_sim.R, walleye_sim.R and lmb_sim.R. Run from the repo root.
+# Walleye and Largemouth Bass, at growth CV = main_cv) and Supplementary Table S1
+# (all growth CVs) from the .rds files written by crappie_sim.R, walleye_sim.R
+# and lmb_sim.R. Run from the repo root.
 
 library(dplyr)
 library(ggplot2)
 library(cowplot)
 
+# Growth CV (length at age) shown in Figures 1-6. The sim scripts also run 0.10
+# and 0.20; those appear only in Supplementary Table S1 as a sensitivity check.
+main_cv <- 0.15
+
 crappie <- readRDS("scripts/crappie_sim_results.rds") |>
+  filter(growth_cv == main_cv) |>
   mutate(scenario = recode(scenario,
                            "No regulation"               = "No regulation",
                            "Min. length 254 mm (10 in.)" = "Min. 254 mm",
@@ -17,6 +23,7 @@ crappie <- readRDS("scripts/crappie_sim_results.rds") |>
   ))
 
 walleye <- readRDS("scripts/walleye_sim_results.rds") |>
+  filter(growth_cv == main_cv) |>
   mutate(scenario = recode(scenario,
                            "Min. length 356 mm (14 in.)" = "Min. 356 mm",
                            "Min. length 457 mm (18 in.)" = "Min. 457 mm",
@@ -24,6 +31,7 @@ walleye <- readRDS("scripts/walleye_sim_results.rds") |>
   ))
 
 lmb <- readRDS("scripts/lmb_sim_results.rds") |>
+  filter(growth_cv == main_cv) |>
   mutate(scenario = recode(scenario,
                            "Min. length 305 mm, low mortality"          = "Min. 305 mm, low D",
                            "Min. length 305 mm, high mortality"         = "Min. 305 mm, high D",
@@ -219,7 +227,7 @@ walleye <- readRDS("scripts/walleye_sim_results.rds")
 lmb     <- readRDS("scripts/lmb_sim_results.rds")
 
 bind_rows(crappie, walleye, lmb) |>
-  group_by(species, scenario, growth_preset, U, DisMort) |>
+  group_by(species, scenario, growth_preset, growth_cv, U, DisMort) |>
   # Intervals are the 2.5% and 97.5% quantiles across replicates, matching
   # the ribbons in the line figures. SDs are kept for reference.
   summarise(

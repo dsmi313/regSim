@@ -132,20 +132,30 @@ scen_params <- data.frame(
 
 growth_labels <- c("slow", "moderate", "fast")
 
-# Full crossing: 4 scenarios × 3 growth × 3 U = 36 combinations
+# Growth CV = coefficient of variation in length at age. 0.15 is the default
+# and is used for the manuscript figures; 0.10 and 0.20 are the sensitivity
+# runs reported alongside it in Supplementary Table S1.
+cv_levels <- c(0.10, 0.15, 0.20)
+
+# Full crossing: 4 scenarios × 3 growth × 3 U × 3 growth CV = 108 combinations
 combos <- merge(
-  merge(scen_params,
-        data.frame(growth_preset = growth_labels, stringsAsFactors = FALSE),
-        by = character()),
-  U_df,
+  merge(
+    merge(scen_params,
+          data.frame(growth_preset = growth_labels, stringsAsFactors = FALSE),
+          by = character()),
+    U_df,
+    by = character()
+  ),
+  data.frame(growth_cv = cv_levels),
   by = character()
 )
-combos <- combos[order(combos$scenario, combos$growth_preset, combos$U), ]
+combos <- combos[order(combos$scenario, combos$growth_preset, combos$U, combos$growth_cv), ]
 rownames(combos) <- NULL
 
-n_combos <- nrow(combos)  # 36
+n_combos <- nrow(combos)  # 108
 
-# ── Pre-compute cached inputs (bins and gmat depend only on growth_preset;
+# ── Pre-compute cached inputs (bins depend on growth_preset, gmat on
+#    growth_preset x growth CV;
 #    vc depends on scenario × growth_preset but NOT on U) ─────────────────────
 growth_presets_list <- list(
   slow     = growth_slow,
@@ -155,20 +165,22 @@ growth_presets_list <- list(
 
 bins_cache <- vector("list", length(growth_presets_list))
 names(bins_cache) <- names(growth_presets_list)
-gmat_cache <- vector("list", length(growth_presets_list))
-names(gmat_cache) <- names(growth_presets_list)
+gmat_cache <- list()   # keyed by "<growth preset> <growth CV>"
 
 for (gp in names(growth_presets_list)) {
   g <- growth_presets_list[[gp]]
   bins_cache[[gp]] <- make_length_bins(Linf = g$linf)
-  gmat_cache[[gp]] <- make_growth_matrix(
-    Linf          = g$linf,
-    vbk           = g$vbk,
-    t0            = g$t0,
-    bin_midpoints = bins_cache[[gp]]$bin_midpoints,
-    length_bins   = bins_cache[[gp]]$length_bins,
-    growth_cv     = 0.20
-  )
+  for (cv in cv_levels) {
+    gmat_cache[[paste(gp, cv)]] <- make_growth_matrix(
+      Linf          = g$linf,
+      vbk           = g$vbk,
+      t0            = g$t0,
+      bin_midpoints = bins_cache[[gp]]$bin_midpoints,
+      length_bins   = bins_cache[[gp]]$length_bins,
+      growth_cv     = cv,
+      Amax          = sp$amax
+    )
+  }
 }
 
 vc_cache <- list()
@@ -196,7 +208,7 @@ for (i in seq_len(nrow(combos))) {
 }
 
 cat("White crappie simulation\n")
-cat("  Combinations :", n_combos, "(4 scenarios x 3 growth x 3 U)\n")
+cat("  Combinations :", n_combos, "(4 scenarios x 3 growth x 3 U x 3 growth CV)\n")
 cat("  Replicates   :", nsim, "per combination\n\n")
 
 # ── Main simulation loop ──────────────────────────────────────────────────────
@@ -214,7 +226,7 @@ results_list <- with_progress({
     key   <- paste(combo$scenario, combo$growth_preset, sep = "\n")
 
     bins <- bins_cache[[combo$growth_preset]]
-    gmat <- gmat_cache[[combo$growth_preset]]
+    gmat <- gmat_cache[[paste(combo$growth_preset, combo$growth_cv)]]
     vc   <- vc_cache[[key]]
 
     sim_out <- run_population_simulation(
@@ -242,6 +254,7 @@ results_list <- with_progress({
     d$species       <- "white_crappie"
     d$scenario      <- combo$scenario
     d$growth_preset <- combo$growth_preset
+    d$growth_cv     <- combo$growth_cv
     d$U_label       <- combo$U_label
     d$U             <- combo$U
     d$U_category    <- combo$U_category
