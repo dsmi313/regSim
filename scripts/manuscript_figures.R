@@ -220,12 +220,20 @@ lmb     <- readRDS("scripts/lmb_sim_results.rds")
 
 bind_rows(crappie, walleye, lmb) |>
   group_by(species, scenario, growth_preset, U, DisMort) |>
+  # Intervals are the 2.5% and 97.5% quantiles across replicates, matching
+  # the ribbons in the line figures. SDs are kept for reference.
   summarise(
     YPR_mean  = mean(YPR),
+    YPR_q025  = quantile(YPR,  0.025),
+    YPR_q975  = quantile(YPR,  0.975),
     YPR_sd    = sd(YPR),
     SPR_mean  = mean(SPR),
+    SPR_q025  = quantile(SPR,  0.025),
+    SPR_q975  = quantile(SPR,  0.975),
     SPR_sd    = sd(SPR),
     Prop_mean = mean(Prop),
+    Prop_q025 = quantile(Prop, 0.025),
+    Prop_q975 = quantile(Prop, 0.975),
     Prop_sd   = sd(Prop),
     n         = n(),
     .groups   = "drop"
