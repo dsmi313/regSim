@@ -129,10 +129,11 @@ make_vulnerability_curves <- function(bin_midpoints,
   Vulcap_bins <- 1 / (1 + exp(-(bin_midpoints - Capsize) / CapsizeSD))
 
   if (enable_slot) {
-    slope        <- 0.01
+    # Both slot edges use SD = 1% of the edge length, like the capture and
+    # minimum length curves, so regulations sharing a limit treat it alike.
     Effective_min        <- max(Harvlim, Capsize)
-    Vulharv_above_min    <- 1 / (1 + exp(-(bin_midpoints - Effective_min) / slope))
-    Vulharv_below_max    <- 1 / (1 + exp( (bin_midpoints - slot_upper)    / slope))
+    Vulharv_above_min    <- 1 / (1 + exp(-(bin_midpoints - Effective_min) / (Effective_min * 0.01)))
+    Vulharv_below_max    <- 1 / (1 + exp( (bin_midpoints - slot_upper)    / (slot_upper    * 0.01)))
     # "traditional" is accepted as the pre-0.2.0 name for a harvest slot.
     if (slot_type %in% c("harvest", "traditional")) {
       Vulharv_bins <- Vulharv_above_min * Vulharv_below_max
@@ -140,7 +141,7 @@ make_vulnerability_curves <- function(bin_midpoints,
       Vulharv_bins <- (1 - (Vulharv_above_min * Vulharv_below_max)) * Vulcap_bins
     }
   } else if (enable_max_limit) {
-    Vulharv_below_max <- 1 / (1 + exp((bin_midpoints - max_harvest_size) / 0.01))
+    Vulharv_below_max <- 1 / (1 + exp((bin_midpoints - max_harvest_size) / (max_harvest_size * 0.01)))
     Vulharv_bins      <- Vulcap_bins * Vulharv_below_max
   } else {
     Vulharv_bins <- Vulcap_bins * (1 / (1 + exp(-(bin_midpoints - Harvlim) / HarvlimSD)))

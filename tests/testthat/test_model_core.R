@@ -286,3 +286,25 @@ test_that("run_population_simulation rejects an array with the wrong number of a
   inp$Amax <- 9L
   expect_error(do.call(run_population_simulation, c(inp, collect_full_output = FALSE)), "Amax")
 })
+
+test_that("harvest slot and minimum length treat a shared lower limit the same", {
+  # With the slot's upper edge far above the grid, a 254-mm harvest slot is a
+  # 254-mm minimum length: both edges use SD = 1% of the limit.
+  g   <- make_wc_grid()
+  arg <- list(g$bin_midpoints, 204, 254, 180, 305, 2.40991e-6, 3.38, 0.374, 1.27)
+  mll  <- do.call(make_vulnerability_curves, arg)
+  slot <- do.call(make_vulnerability_curves, c(arg, enable_slot = TRUE,
+                                              slot_type = "harvest", slot_upper = 1e5))
+  expect_equal(slot$Vulharv_bins, mll$Vulharv_bins, tolerance = 1e-6)
+})
+
+test_that("slot and maximum length edges have SD = 1% of the edge length", {
+  g  <- make_wc_grid()
+  vc <- make_vulnerability_curves(g$bin_midpoints, 204, 0, 180, 305, 2.40991e-6, 3.38,
+                                  0.374, 1.27, enable_max_limit = TRUE, max_harvest_size = 305)
+  i  <- which(g$bin_midpoints == 305)
+  if (length(i)) expect_equal(vc$Vulharv_bins[i] / vc$Vulcap_bins[i], 0.5, tolerance = 1e-9)
+  # 10 mm past a 305-mm maximum is 10/3.05 SDs: about 4% still harvestable
+  j  <- which(g$bin_midpoints == 315)
+  expect_equal(vc$Vulharv_bins[j] / vc$Vulcap_bins[j], 1 / (1 + exp(10 / 3.05)), tolerance = 1e-9)
+})

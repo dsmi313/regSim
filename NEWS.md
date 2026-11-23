@@ -8,6 +8,11 @@
   (an L x L x (Amax - 1) array). `run_population_simulation()` uses the
   age-specific matrices and still accepts a single L x L matrix. The old CV on
   the increment collapsed toward zero near Linf, so no fish could grow past it.
+* Harvest slot, protective slot and maximum length edges now use SD = 1% of
+  the edge length, like the capture and minimum length curves (they were a
+  fixed 0.01 mm). A slot and a minimum sharing a lower limit now treat it the
+  same; previously the slot harvested more fish in the bin just above the
+  limit.
 * `make_length_bins()` spans 0 to 1.6 x Linf by default (was 1.2) so the
   length grid holds fish larger than Linf; `max_mult = 1.2` restores the old
   grid.
