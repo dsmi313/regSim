@@ -48,7 +48,7 @@ get_species_preset <- function(species) {
       # so Jensen's coefficient does not apply. Idaho catch-curve data (Frawley,
       # IDFG) imply M/K ratios of 4.3-7.2, far outside Jensen's range. M and K
       # remain independent, user-overridable inputs.
-      linf = 584, vbk = 0.22, t0 = 0, nat_mort = 0.46,
+      linf = 592, vbk = 0.21, t0 = 0, nat_mort = 0.46,
       rec_cv = 0.5, amax = 12, ymax = 132, capsize = 200,
       fec_exp = 1.18,
       label = "Loaded Largemouth Bass parameters (FishBase median)"

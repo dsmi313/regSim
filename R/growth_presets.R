@@ -57,9 +57,11 @@ get_growth_preset <- function(species, preset) {
     # precisely because it does not scale with K for these species; K and M
     # remain fully independent, user-overridable inputs.
     lmb = list(
-      slow     = list(linf = 638, vbk = 0.17, t0 = -0.21, nat_mort = 0.46),
-      moderate = list(linf = 584, vbk = 0.22, t0 =  0.00, nat_mort = 0.46),
-      fast     = list(linf = 540, vbk = 0.28, t0 =  0.10, nat_mort = 0.46)
+      # K = 25th/50th/75th percentiles of FishBase records (41 not flagged
+      # questionable, pulled Nov 23, 2026); Linf = 75th/50th/25th (inverse pairing)
+      slow     = list(linf = 640, vbk = 0.16, t0 = -0.21, nat_mort = 0.46),
+      moderate = list(linf = 592, vbk = 0.21, t0 =  0.00, nat_mort = 0.46),
+      fast     = list(linf = 554, vbk = 0.28, t0 =  0.10, nat_mort = 0.46)
     ),
     smb = list(
       slow     = list(linf = 608, vbk = 0.14, t0 = -0.45, nat_mort = 0.43),
