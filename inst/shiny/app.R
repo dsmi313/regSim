@@ -40,6 +40,8 @@ ui <- fluidPage(
       helpText(tags$small(tags$em("Fish at this size are sexually mature"))),
       
       numericInput("memorable_size", "Memorable Size (mm):", value = 305, min = 100, max = 700, step = 5),
+      numericInput("stock_size", "Stock Size (mm):", value = 127, min = 50, max = 400, step = 1),
+      helpText(tags$small(tags$em("Proportion memorable = memorable-size fish / stock-size fish (Gabelhouse 1984 length categories)."))),
       helpText(tags$small(tags$em("Trophy/quality fish threshold"))),
       
       numericInput("nat_mort", "Natural Mortality (M):", value = 0.35, min = 0.05, max = 1.0, step = 0.01),
@@ -62,10 +64,10 @@ ui <- fluidPage(
         condition = "input.enable_ddr == true",
         sliderInput("steepness", "Steepness (h):",
                     min = 0.5, max = 0.95, value = 0.7, step = 0.01),
-        helpText(tags$small(tags$em("h = 0.5: strong compensation (recruitment proportional to SSB). h = 0.8+: weak compensation (recruitment nearly constant). Typical: 0.7-0.8."))),
+        helpText(tags$small(tags$em("Steepness h = recruitment at 20% of unfished spawning stock, as a fraction of unfished recruitment. Higher h = stronger compensation: at h = 0.95 recruitment stays nearly constant until the stock is small; at h = 0.5 recruitment falls off sooner as the stock declines (h = 0.2 would make recruitment proportional to spawning stock). Typical: 0.7-0.8."))),
         br(),
         checkboxInput("enable_depensation", "Enable Depensation (Allee Effects)", value = FALSE),
-        helpText(tags$small(tags$em("When enabled, recruitment crashes when SSB drops below 20% of unfished level. Simulates mate-finding failure, predator swamping failure, and other critical thresholds.")))
+        helpText(tags$small(tags$em("When enabled, recruitment is multiplied by (SSB / 0.2 SSB0)^2 when spawning stock falls below 20% of unfished, so it drops off steeply toward zero. Simulates mate-finding failure, predator swamping failure, and other critical thresholds.")))
       ),
       br(),
       
@@ -416,7 +418,7 @@ server <- function(input, output, session) {
       vc <- make_vulnerability_curves(
         bin_midpoints    = bin_midpoints,
         Capsize          = input$capsize,  Harvlim = input$harvlim,
-        mat_size         = input$mat_size, memorable_size = input$memorable_size,
+        mat_size         = input$mat_size, memorable_size = input$memorable_size, stock_size = input$stock_size,
         wl_a             = input$wl_a,     wl_b    = input$wl_b,
         nat_mort         = input$nat_mort, fec_exp = fec_exp,
         enable_slot      = isTRUE(input$enable_slot),
@@ -430,7 +432,7 @@ server <- function(input, output, session) {
         bin_midpoints  = bin_midpoints,    length_bins   = length_bins,
         Growth_matrix  = gm$Growth_matrix, recruit_dist  = gm$recruit_dist,
         Vulcap_bins    = vc$Vulcap_bins,   Vulharv_bins  = vc$Vulharv_bins,
-        trophyvul_bins = vc$trophyvul_bins, Fec_bins     = vc$Fec_bins,
+        trophyvul_bins = vc$trophyvul_bins, stockvul_bins = vc$stockvul_bins, Fec_bins     = vc$Fec_bins,
         Wt_bins        = vc$Wt_bins,       S_bins        = vc$S_bins,
         Amax = Amax, Ymax = Ymax,
         Ro = input$R0, rec_cv = input$rec_cv,
@@ -482,7 +484,7 @@ server <- function(input, output, session) {
             vc_k   <- make_vulnerability_curves(
               bin_midpoints    = bm_k,
               Capsize          = input$capsize,    Harvlim        = input$harvlim,
-              mat_size         = input$mat_size,   memorable_size = input$memorable_size,
+              mat_size         = input$mat_size,   memorable_size = input$memorable_size, stock_size = input$stock_size,
               wl_a             = input$wl_a,       wl_b           = input$wl_b,
               nat_mort         = input$nat_mort,   fec_exp        = fec_exp,
               enable_slot      = isTRUE(input$enable_slot),
@@ -501,7 +503,7 @@ server <- function(input, output, session) {
             bin_midpoints  = bm_k,                 length_bins    = lb_k,
             Growth_matrix  = gm_k$Growth_matrix,   recruit_dist   = gm_k$recruit_dist,
             Vulcap_bins    = vc_k$Vulcap_bins,     Vulharv_bins   = vc_k$Vulharv_bins,
-            trophyvul_bins = vc_k$trophyvul_bins,  Fec_bins       = vc_k$Fec_bins,
+            trophyvul_bins = vc_k$trophyvul_bins, stockvul_bins = vc_k$stockvul_bins,  Fec_bins       = vc_k$Fec_bins,
             Wt_bins        = vc_k$Wt_bins,         S_bins         = S_bins_k,
             Amax = Amax, Ymax = Ymax,
             Ro = input$R0, rec_cv = input$rec_cv,
@@ -1096,7 +1098,7 @@ server <- function(input, output, session) {
       vc <- make_vulnerability_curves(
         bin_midpoints    = bin_midpoints,
         Capsize          = input$capsize,  Harvlim = input$harvlim,
-        mat_size         = input$mat_size, memorable_size = input$memorable_size,
+        mat_size         = input$mat_size, memorable_size = input$memorable_size, stock_size = input$stock_size,
         wl_a             = input$wl_a,     wl_b    = input$wl_b,
         nat_mort         = input$nat_mort, fec_exp = fec_exp,
         enable_slot      = isTRUE(input$enable_slot),
@@ -1112,7 +1114,7 @@ server <- function(input, output, session) {
         bin_midpoints  = bin_midpoints,    length_bins   = length_bins,
         Growth_matrix  = gm$Growth_matrix, recruit_dist  = gm$recruit_dist,
         Vulcap_bins    = vc$Vulcap_bins,   Vulharv_bins  = vc$Vulharv_bins,
-        trophyvul_bins = vc$trophyvul_bins, Fec_bins     = vc$Fec_bins,
+        trophyvul_bins = vc$trophyvul_bins, stockvul_bins = vc$stockvul_bins, Fec_bins     = vc$Fec_bins,
         Wt_bins        = vc$Wt_bins,       S_bins        = vc$S_bins,
         Amax = Amax, Ymax = Ymax_yield,
         Ro = input$R0, rec_cv = input$rec_cv,

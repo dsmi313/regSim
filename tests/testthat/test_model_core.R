@@ -116,7 +116,7 @@ test_that("make_vulnerability_curves returns expected named list", {
   vc <- make_vulnerability_curves(
     g$bin_midpoints, 204, 254, 180, 305, 2.40991e-6, 3.38, 0.374, 1.27
   )
-  expected_names <- c("Vulcap_bins", "Vulharv_bins", "trophyvul_bins",
+  expected_names <- c("Vulcap_bins", "Vulharv_bins", "trophyvul_bins", "stockvul_bins",
                       "Fec_bins", "Wt_bins", "M_bins", "S_bins", "maturity_ogive_bins")
   expect_named(vc, expected_names, ignore.order = TRUE)
 })
@@ -307,4 +307,31 @@ test_that("slot and maximum length edges have SD = 1% of the edge length", {
   # 10 mm past a 305-mm maximum is 10/3.05 SDs: about 4% still harvestable
   j  <- which(g$bin_midpoints == 315)
   expect_equal(vc$Vulharv_bins[j] / vc$Vulcap_bins[j], 1 / (1 + exp(10 / 3.05)), tolerance = 1e-9)
+})
+
+test_that("proportion memorable is relative to stock-size fish", {
+  g   <- make_wc_grid()
+  arg <- list(g$bin_midpoints, 204, 254, 180, 305, 2.40991e-6, 3.38, 0.374, 1.27)
+  vc_all   <- do.call(make_vulnerability_curves, arg)
+  vc_stock <- do.call(make_vulnerability_curves, c(arg, stock_size = 127))
+  expect_true(all(vc_all$stockvul_bins == 1))
+  inp <- make_wc_inputs(nsim = 1); inp$rec_cv <- 0
+  all_fish <- do.call(run_population_simulation, c(inp, collect_full_output = TRUE))
+  inp$stockvul_bins <- vc_stock$stockvul_bins
+  stock    <- do.call(run_population_simulation, c(inp, collect_full_output = TRUE))
+  N <- stock$all_Abundance[, 1]
+  expect_equal(stock$sim_df$Prop,
+               sum(inp$trophyvul_bins * N) / sum(vc_stock$stockvul_bins * N), tolerance = 1e-6)
+  expect_gt(stock$sim_df$Prop, all_fish$sim_df$Prop)
+})
+
+test_that("recruitment noise under density-dependent recruitment is mean-corrected", {
+  inp <- make_wc_inputs(nsim = 40); inp$U <- 0
+  det <- inp; det$rec_cv <- 0; det$nsim <- 1
+  set.seed(31)
+  d <- do.call(run_population_simulation, c(det, enable_ddr = TRUE, steepness = 0.95, collect_full_output = FALSE))
+  set.seed(31)
+  s <- do.call(run_population_simulation, c(inp, enable_ddr = TRUE, steepness = 0.95, collect_full_output = FALSE))
+  # Uncorrected noise would inflate mean recruitment by exp(sigma^2 / 2) = 1.28 at CV 0.8
+  expect_lt(abs(mean(s$sim_df$Recruit) / d$sim_df$Recruit - 1), 0.10)
 })

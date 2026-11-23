@@ -38,7 +38,7 @@ test_that("ymax equals amax + 120 for all species", {
 })
 
 test_that("all species presets contain required fields", {
-  required <- c("wl_a", "wl_b", "mat_size", "memorable_size",
+  required <- c("wl_a", "wl_b", "mat_size", "memorable_size", "stock_size",
                 "linf", "vbk", "t0", "nat_mort",
                 "rec_cv", "amax", "ymax", "capsize",
                 "fec_exp", "label")
@@ -63,5 +63,15 @@ test_that("all numeric preset values are positive", {
         expect_true(p[[f]] > 0, info = paste(sp, f, "should be positive"))
       }
     }
+  }
+})
+
+test_that("stock sizes are Gabelhouse (1984) stock lengths, below memorable size", {
+  stock <- c(white_crappie = 127, black_crappie = 127, walleye = 254, lmb = 203,
+             smb = 178, channel_catfish = 279, blue_catfish = 305)
+  for (sp in names(stock)) {
+    p <- get_species_preset(sp)
+    expect_equal(p$stock_size, stock[[sp]])
+    expect_lt(p$stock_size, p$memorable_size)
   }
 })

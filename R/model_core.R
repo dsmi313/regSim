@@ -104,6 +104,9 @@ make_growth_matrix <- function(Linf, vbk, t0, bin_midpoints, length_bins,
 #' @param enable_max_limit Logical; apply a maximum-length limit.
 #' @param max_harvest_size Maximum harvest length (mm); required when
 #'   \code{enable_max_limit = TRUE}.
+#' @param stock_size Gabelhouse (1984) stock length (mm). Proportion memorable
+#'   is memorable-size fish divided by stock-size fish; \code{NULL} divides by
+#'   all fish instead.
 #'
 #' @return A named list of per-bin numeric vectors: \code{Vulcap_bins},
 #'   \code{Vulharv_bins}, \code{trophyvul_bins}, \code{Fec_bins}, \code{Wt_bins},
@@ -117,7 +120,8 @@ make_vulnerability_curves <- function(bin_midpoints,
                                       slot_type       = "harvest",
                                       slot_upper      = NULL,
                                       enable_max_limit = FALSE,
-                                      max_harvest_size = NULL) {
+                                      max_harvest_size = NULL,
+                                      stock_size      = NULL) {
   CapsizeSD  <- Capsize * 0.01
   HarvlimSD  <- Harvlim * 0.01
 
@@ -149,6 +153,10 @@ make_vulnerability_curves <- function(bin_midpoints,
 
   trophyvul_bins <- 1 / (1 + exp(-(bin_midpoints - memorable_size) /
                                    (memorable_size * 0.1)))
+  # Stock-size fish: denominator of proportion memorable (an RSD-M-type index,
+  # Gabelhouse 1984). NULL keeps every fish in the denominator.
+  stockvul_bins <- if (is.null(stock_size)) rep(1, length(bin_midpoints)) else
+    1 / (1 + exp(-(bin_midpoints - stock_size) / (stock_size * 0.1)))
 
   M_adult <- nat_mort
   M_bins  <- rep(M_adult, length(bin_midpoints))
@@ -161,6 +169,7 @@ make_vulnerability_curves <- function(bin_midpoints,
     Vulcap_bins         = Vulcap_bins,
     Vulharv_bins        = Vulharv_bins,
     trophyvul_bins      = trophyvul_bins,
+    stockvul_bins       = stockvul_bins,
     Fec_bins            = Fec_bins,
     Wt_bins             = Wt_bins,
     M_bins              = M_bins,
@@ -194,6 +203,9 @@ make_vulnerability_curves <- function(bin_midpoints,
 #'   \code{enable_ddr = TRUE}).
 #' @param enable_depensation Logical; apply depensation below 20\% of unfished
 #'   spawning stock biomass.
+#' @param stockvul_bins Per-bin stock-size curve from
+#'   \code{\link{make_vulnerability_curves}}; proportion memorable is computed
+#'   relative to these fish. \code{NULL} uses all fish.
 #' @param collect_full_output When \code{TRUE}, also return the per-year,
 #'   per-replicate matrices needed for time-series and population-structure
 #'   plots; set \code{FALSE} for faster yield-curve sweeps.
@@ -219,8 +231,10 @@ run_population_simulation <- function(bin_midpoints, length_bins,
                                       steepness         = 0.7,
                                       enable_depensation = FALSE,
                                       collect_full_output = TRUE,
-                                      progress_fn       = NULL) {
+                                      progress_fn       = NULL,
+                                      stockvul_bins     = NULL) {
   L_bins <- length(bin_midpoints)
+  if (is.null(stockvul_bins)) stockvul_bins <- rep(1, L_bins)
 
   # --- Fishing mortality derived quantities -----------------------------------
   F_bins            <- Vulharv_bins * U
@@ -335,7 +349,7 @@ run_population_simulation <- function(bin_midpoints, length_bins,
           if (isTRUE(enable_depensation) && eggs_prev < 0.2 * SSB0)
             R_BH    <- R_BH * (eggs_prev / (0.2 * SSB0)) ^ 2
           Rcapacity[i] <- if (rec_cv == 0) max(1, R_BH) else
-            max(1, R_BH * rlnorm(1, 0, sd = sigmaR))
+            max(1, R_BH * rlnorm(1, meanlog = -0.5 * sigmaR^2, sd = sigmaR))
         }
 
         age_survive       <- age_len * Survival_mat
@@ -348,7 +362,7 @@ run_population_simulation <- function(bin_midpoints, length_bins,
           yld_i       <- sum(harvest_weight_bins * N_cur)
           SPR_acc     <- SPR_acc     + eggs_cur / SPR_denom
           Yield_acc   <- Yield_acc   + yld_i
-          Prop_acc    <- Prop_acc    + sum(trophyvul_bins * N_cur) / max(1, sum(N_cur))
+          Prop_acc    <- Prop_acc    + sum(trophyvul_bins * N_cur) / max(1, sum(stockvul_bins * N_cur))
           Recruit_acc <- Recruit_acc + Rcapacity[i]
           hb_tot      <- sum(harvest_number_bins * N_cur)
           if (hb_tot > 0) {
@@ -404,7 +418,7 @@ run_population_simulation <- function(bin_midpoints, length_bins,
       eggs_t[yr] <- sum(N[yr, ] * Fec_bins)
       SPRt[yr]   <- eggs_t[yr] / SPR_denom   # approaches 1.0 as burn-in converges
       YPR[yr]    <- 0
-      Prop[yr]   <- sum(trophyvul_bins * N[yr, ]) / max(1, sum(N[yr, ]))
+      Prop[yr]   <- sum(trophyvul_bins * N[yr, ]) / max(1, sum(stockvul_bins * N[yr, ]))
     }
 
     # --- Fished simulation years ---------------------------------------------
@@ -419,7 +433,7 @@ run_population_simulation <- function(bin_midpoints, length_bins,
           R_BH <- R_BH * (eggs_prev / (0.2 * SSB0)) ^ 2
         }
         Rcapacity[i] <- if (rec_cv == 0) max(1, R_BH) else
-          max(1, R_BH * rlnorm(1, 0, sd = sigmaR))
+          max(1, R_BH * rlnorm(1, meanlog = -0.5 * sigmaR^2, sd = sigmaR))
       }
 
       age_survive           <- age_len * Survival_mat
@@ -433,7 +447,7 @@ run_population_simulation <- function(bin_midpoints, length_bins,
       # SPR = stock egg production relative to the unfished equilibrium.
       # Values > 1 occur in favourable recruitment years (biologically meaningful).
       SPRt[i]          <- eggs_t[i] / SPR_denom
-      Prop[i]          <- sum(trophyvul_bins * N[i, ]) / max(1, sum(N[i, ]))
+      Prop[i]          <- sum(trophyvul_bins * N[i, ]) / max(1, sum(stockvul_bins * N[i, ]))
     }
 
     # --- Summarise last 50 fished years into sim_df row ----------------------

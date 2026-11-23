@@ -13,6 +13,20 @@
   fixed 0.01 mm). A slot and a minimum sharing a lower limit now treat it the
   same; previously the slot harvested more fish in the bin just above the
   limit.
+* Proportion memorable is now memorable-size fish divided by stock-size fish
+  (an RSD-M-type index; Gabelhouse 1984), not divided by every fish in the
+  population. Species presets gain `stock_size` (Gabelhouse stock lengths in
+  inches converted to mm: crappies 127, Walleye 254, Largemouth Bass 203,
+  Smallmouth Bass 178, Channel Catfish 279, Blue Catfish 305).
+  `make_vulnerability_curves(stock_size =)` returns `stockvul_bins`, which
+  `run_population_simulation()`, `run_yield_curve()` and
+  `run_uncertainty_simulation()` accept; the app has a Stock Size input.
+* Recruitment noise under density-dependent recruitment is now mean-corrected
+  (meanlog = -sigma^2 / 2), like the default path. It inflated mean
+  recruitment by exp(sigma^2 / 2) (1.28x crappie, 1.49x Walleye, 1.12x
+  Largemouth Bass). The case studies don't use DDR.
+* App help text for steepness had its meaning reversed and now reads
+  correctly; the depensation text now gives the actual formula.
 * `make_length_bins()` spans 0 to 1.6 x Linf by default (was 1.2) so the
   length grid holds fish larger than Linf; `max_mult = 1.2` restores the old
   grid.

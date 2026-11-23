@@ -14,7 +14,7 @@
 get_species_preset <- function(species) {
   presets <- list(
     white_crappie = list(
-      wl_a = 2.40991e-6, wl_b = 3.38, mat_size = 180, memorable_size = 305,
+      wl_a = 2.40991e-6, wl_b = 3.38, mat_size = 180, memorable_size = 305, stock_size = 127,
       # nat_mort = vbk (M = K) for crappie
       linf = 353, vbk = 0.374, t0 = 0.197, nat_mort = 0.374,
       rec_cv = 0.8, amax = 8, ymax = 128, capsize = 204,
@@ -22,7 +22,7 @@ get_species_preset <- function(species) {
       label = "Loaded White Crappie parameters (Smith et al. 2025)"
     ),
     black_crappie = list(
-      wl_a = 1.10e-5, wl_b = 3.07, mat_size = 180, memorable_size = 305,
+      wl_a = 1.10e-5, wl_b = 3.07, mat_size = 180, memorable_size = 305, stock_size = 127,
       # nat_mort = vbk (M = K) for crappie
       linf = 381, vbk = 0.19, t0 = 0.34, nat_mort = 0.19,
       rec_cv = 0.8, amax = 8, ymax = 128, capsize = 204,
@@ -30,7 +30,7 @@ get_species_preset <- function(species) {
       label = "Loaded Black Crappie parameters (FishBase median)"
     ),
     walleye = list(
-      wl_a = 6.63e-6, wl_b = 3.10, mat_size = 356, memorable_size = 635,
+      wl_a = 6.63e-6, wl_b = 3.10, mat_size = 356, memorable_size = 635, stock_size = 254,
       harvlim = 356,
       # nat_mort = vbk * 1.5 per Jensen (1996, CJFAS 53:820-822)
       linf = 683, vbk = 0.32, t0 = -0.52, nat_mort = 0.32 * 1.5,
@@ -39,7 +39,7 @@ get_species_preset <- function(species) {
       label = "Loaded Walleye parameters (FishBase median)"
     ),
     lmb = list(
-      wl_a = 8.16e-6, wl_b = 3.10, mat_size = 203, memorable_size = 508,
+      wl_a = 8.16e-6, wl_b = 3.10, mat_size = 203, memorable_size = 508, stock_size = 203,
       harvlim = 305,
       # Fixed species-median M from Beamesderfer and North (1995, NAJFM
       # 15:688-704, Table 2), NOT the Jensen M = 1.5 K default. B&N found no
@@ -54,7 +54,7 @@ get_species_preset <- function(species) {
       label = "Loaded Largemouth Bass parameters (FishBase median)"
     ),
     smb = list(
-      wl_a = 1.09e-5, wl_b = 3.08, mat_size = 254, memorable_size = 432,
+      wl_a = 1.09e-5, wl_b = 3.08, mat_size = 254, memorable_size = 432, stock_size = 178,
       harvlim = 305,
       # Fixed species-median M from Beamesderfer and North (1995, NAJFM
       # 15:688-704, Table 2), NOT the Jensen M = 1.5 K default. B&N found no
@@ -69,7 +69,7 @@ get_species_preset <- function(species) {
       label = "Loaded Smallmouth Bass parameters (FishBase median)"
     ),
     channel_catfish = list(
-      wl_a = 1.66e-6, wl_b = 3.30, mat_size = 356, memorable_size = 711,
+      wl_a = 1.66e-6, wl_b = 3.30, mat_size = 356, memorable_size = 711, stock_size = 279,
       harvlim = 305,
       # nat_mort = vbk * 1.5 per Jensen (1996, CJFAS 53:820-822)
       linf = 592, vbk = 0.17, t0 = -0.62, nat_mort = 0.17 * 1.5,
@@ -78,7 +78,7 @@ get_species_preset <- function(species) {
       label = "Loaded Channel Catfish parameters (FishBase median)"
     ),
     blue_catfish = list(
-      wl_a = 7.74e-7, wl_b = 3.41, mat_size = 350, memorable_size = 889,
+      wl_a = 7.74e-7, wl_b = 3.41, mat_size = 350, memorable_size = 889, stock_size = 305,
       harvlim = 305,
       # nat_mort = vbk * 1.5 per Jensen (1996, CJFAS 53:820-822)
       linf = 1300, vbk = 0.079, t0 = -1.3, nat_mort = 0.079 * 1.5,
