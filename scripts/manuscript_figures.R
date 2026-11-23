@@ -135,7 +135,7 @@ make_line_figure <- function(df, species_label, scen_levels) {
 }
 
 make_violin_figure <- function(df, species_label, scen_levels, target_U,
-                               ypr_from_zero = FALSE) {
+                               ypr_from_zero = FALSE, dot_size = 0.3) {
   
   violin_df <- df |>
     dplyr::filter(growth_preset == "moderate", U %in% target_U) |>
@@ -170,7 +170,7 @@ make_violin_figure <- function(df, species_label, scen_levels, target_U,
                    fun.min = function(x) quantile(x, 0.025),
                    fun.max = function(x) quantile(x, 0.975),
                    geom = "pointrange", colour = "black",
-                   size = 0.3, linewidth = 0.5) +
+                   size = dot_size, linewidth = 0.5) +
       facet_wrap(~ U_label, ncol = 1, scales = "fixed") +
       scale_fill_manual(values = scen_colors) +
       labs(x = xlab) +
@@ -216,7 +216,7 @@ violin_crappie <- make_violin_figure(crappie, "White Crappie",
 violin_walleye <- make_violin_figure(walleye, "Walleye",
                                      c("Min. 356 mm", "Min. 457 mm", "Slot 356-457 mm"),
                                      target_U = c(0.15, 0.30, 0.50),
-                                     ypr_from_zero = TRUE)
+                                     ypr_from_zero = TRUE, dot_size = 0.18)
 violin_lmb <- make_violin_figure(lmb, "Largemouth Bass",
                                  c("Min. 305 mm, low D", "Min. 305 mm, high D",
                                    "Slot 305-508 mm, low D", "Slot 305-508 mm, high D"),
