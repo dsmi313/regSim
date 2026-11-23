@@ -218,3 +218,17 @@ test_that("fast path sim_df columns are finite and biologically plausible", {
   expect_true(all(df$Prop   >= 0 & df$Prop   <= 1, na.rm = TRUE))
   expect_true(all(df$Recruit > 0, na.rm = TRUE))
 })
+
+test_that("stochastic YPR is not inflated relative to deterministic YPR", {
+  # Averaging annual yield / recruits inflates YPR by about 1 + rec_cv^2.
+  # Total yield / total recruits should match the deterministic value.
+  inp_det <- make_wc_inputs(nsim = 1);  inp_det$rec_cv <- 0
+  inp_sto <- make_wc_inputs(nsim = 50); inp_sto$rec_cv <- 0.8
+  set.seed(21)
+  det <- do.call(run_population_simulation, c(inp_det, collect_full_output = FALSE))
+  for (full in c(FALSE, TRUE)) {
+    set.seed(21)
+    sto <- do.call(run_population_simulation, c(inp_sto, collect_full_output = full))
+    expect_lt(abs(mean(sto$sim_df$YPR) / det$sim_df$YPR - 1), 0.10)
+  }
+})

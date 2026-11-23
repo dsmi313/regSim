@@ -294,7 +294,7 @@ run_population_simulation <- function(bin_midpoints, length_bins,
       last_50_start <- max(start_year, Ymax - 49L)
       n50           <- Ymax - last_50_start + 1L
 
-      SPR_acc <- YPR_acc <- Prop_acc <- Recruit_acc <- 0.0
+      SPR_acc <- Yield_acc <- Prop_acc <- Recruit_acc <- 0.0
       harv_len_sum <- 0.0
       harv_len_n   <- 0L
       eggs_prev    <- eggs_prev_ref
@@ -321,7 +321,7 @@ run_population_simulation <- function(bin_midpoints, length_bins,
         if (i >= last_50_start) {
           yld_i       <- sum(harvest_weight_bins * N_cur)
           SPR_acc     <- SPR_acc     + eggs_cur / SPR_denom
-          YPR_acc     <- YPR_acc     + yld_i / max(1, Rcapacity[i])
+          Yield_acc   <- Yield_acc   + yld_i
           Prop_acc    <- Prop_acc    + sum(trophyvul_bins * N_cur) / max(1, sum(N_cur))
           Recruit_acc <- Recruit_acc + Rcapacity[i]
           hb_tot      <- sum(harvest_number_bins * N_cur)
@@ -335,7 +335,10 @@ run_population_simulation <- function(bin_midpoints, length_bins,
       }
 
       sim_df$SPR[k]               <- SPR_acc     / n50
-      sim_df$YPR[k]               <- YPR_acc     / n50
+      # Ratio of sums, not mean of annual ratios: averaging yield_t / R_t
+      # inflates YPR by about (1 + rec_cv^2) under lognormal recruitment,
+      # because yield_t comes mostly from earlier cohorts.
+      sim_df$YPR[k]               <- Yield_acc   / max(1, Recruit_acc)
       sim_df$Prop[k]              <- Prop_acc    / n50
       sim_df$Recruit[k]           <- Recruit_acc / n50
       sim_df$MeanLengthHarvested[k] <-
@@ -413,7 +416,8 @@ run_population_simulation <- function(bin_midpoints, length_bins,
     last_50_start <- max(start_year, Ymax - 49L)
     idx           <- last_50_start:Ymax
     sim_df$SPR[k]     <- mean(SPRt[idx], na.rm = TRUE)
-    sim_df$YPR[k]     <- mean(YPR[idx],      na.rm = TRUE)
+    # Ratio of sums over the final 50 years (see fast path comment).
+    sim_df$YPR[k]     <- sum(Yield[idx]) / max(1, sum(Rcapacity[idx]))
     sim_df$Prop[k]    <- mean(Prop[idx],     na.rm = TRUE)
     sim_df$Recruit[k] <- mean(Rcapacity[idx], na.rm = TRUE)
 
