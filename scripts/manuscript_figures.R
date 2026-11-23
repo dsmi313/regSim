@@ -134,7 +134,8 @@ make_line_figure <- function(df, species_label, scen_levels) {
   plot_grid(title, body, ncol = 1, rel_heights = c(0.03, 1))
 }
 
-make_violin_figure <- function(df, species_label, scen_levels, target_U) {
+make_violin_figure <- function(df, species_label, scen_levels, target_U,
+                               ypr_from_zero = FALSE) {
   
   violin_df <- df |>
     dplyr::filter(growth_preset == "moderate", U %in% target_U) |>
@@ -187,7 +188,7 @@ make_violin_figure <- function(df, species_label, scen_levels, target_U) {
   
   p_spr  <- make_vp("SPR",  "SPR",            hline = 0.30, pct = TRUE, from_zero = TRUE) +
     theme(axis.text.y = element_text())
-  p_ypr  <- make_vp("YPR",  "YPR (kg)")
+  p_ypr  <- make_vp("YPR",  "YPR (kg)", from_zero = ypr_from_zero)
   p_prop <- make_vp("Prop", "Prop. memorable", pct = TRUE)
   
   title <- ggdraw() +
@@ -214,7 +215,8 @@ violin_crappie <- make_violin_figure(crappie, "White Crappie",
                                      target_U = c(0.30, 0.50, 0.70))
 violin_walleye <- make_violin_figure(walleye, "Walleye",
                                      c("Min. 356 mm", "Min. 457 mm", "Slot 356-457 mm"),
-                                     target_U = c(0.15, 0.30, 0.50))
+                                     target_U = c(0.15, 0.30, 0.50),
+                                     ypr_from_zero = TRUE)
 violin_lmb <- make_violin_figure(lmb, "Largemouth Bass",
                                  c("Min. 305 mm, low D", "Min. 305 mm, high D",
                                    "Slot 305-508 mm, low D", "Slot 305-508 mm, high D"),
