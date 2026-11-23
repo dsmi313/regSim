@@ -33,7 +33,7 @@ get_species_preset <- function(species) {
       wl_a = 6.63e-6, wl_b = 3.10, mat_size = 356, memorable_size = 630, stock_size = 250,
       harvlim = 356,
       # nat_mort = vbk * 1.5 per Jensen (1996, CJFAS 53:820-822)
-      linf = 683, vbk = 0.32, t0 = -0.52, nat_mort = 0.32 * 1.5,
+      linf = 683, vbk = 0.31, t0 = -0.52, nat_mort = 0.31 * 1.5,
       rec_cv = 1.1, amax = 15, ymax = 135, capsize = 300,
       fec_exp = 1.18,
       label = "Loaded Walleye parameters (FishBase median)"

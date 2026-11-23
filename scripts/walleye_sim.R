@@ -53,11 +53,11 @@ handlers(handler_progress(
 sp <- get_species_preset("walleye")
 
 # ── Growth presets ────────────────────────────────────────────────────────────
-# Moderate growth approximates FishBase median for walleye.
-# Slow/fast bracket the range across northern-latitude walleye populations.
-#   Slow:     Linf=748 mm, K=0.24 yr-1, t0=-0.66
-#   Moderate: Linf=683 mm, K=0.32 yr-1, t0=-0.52  (FishBase median)
-#   Fast:     Linf=615 mm, K=0.43 yr-1, t0=-0.20
+# FishBase quartiles for walleye (42 records not flagged questionable, pulled
+# Nov 23, 2026): K at the 25th/50th/75th percentiles, Linf inversely paired.
+#   Slow:     Linf=750 mm, K=0.25 yr-1, t0=-0.66
+#   Moderate: Linf=683 mm, K=0.31 yr-1, t0=-0.52  (FishBase median)
+#   Fast:     Linf=622 mm, K=0.39 yr-1, t0=-0.20
 growth_slow     <- get_growth_preset("walleye", "slow")
 growth_moderate <- get_growth_preset("walleye", "moderate")
 growth_fast     <- get_growth_preset("walleye", "fast")
