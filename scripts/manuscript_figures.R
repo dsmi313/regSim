@@ -165,7 +165,7 @@ make_violin_figure <- function(df, species_label, scen_levels, target_U,
   # context). Otherwise the axis fits the data, still shared across the U rows.
   make_vp <- function(metric, xlab, hline = NULL, pct = FALSE, from_zero = FALSE) {
     p <- ggplot(violin_df, aes(y = scenario, x = .data[[metric]], fill = scenario)) +
-      geom_violin(alpha = 0.6, linewidth = 0.3, trim = TRUE) +
+      geom_violin(alpha = 0.6, colour = "grey50", linewidth = 0.3, trim = TRUE) +
       stat_summary(fun = median,
                    fun.min = function(x) quantile(x, 0.025),
                    fun.max = function(x) quantile(x, 0.975),
