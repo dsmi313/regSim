@@ -232,3 +232,11 @@ test_that("stochastic YPR is not inflated relative to deterministic YPR", {
     expect_lt(abs(mean(sto$sim_df$YPR) / det$sim_df$YPR - 1), 0.10)
   }
 })
+
+test_that("annual YPR time series averages to the reported YPR", {
+  inp <- make_wc_inputs(nsim = 10)
+  set.seed(22)
+  out <- do.call(run_population_simulation, c(inp, collect_full_output = TRUE))
+  idx <- (inp$Ymax - 49L):inp$Ymax
+  expect_equal(colMeans(out$all_YPR[idx, , drop = FALSE]), out$sim_df$YPR)
+})

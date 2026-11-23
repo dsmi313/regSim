@@ -404,7 +404,6 @@ run_population_simulation <- function(bin_midpoints, length_bins,
       N[i, ]                <- colSums(age_len)
       Yield[i]              <- sum(harvest_weight_bins * N[i, ])
       eggs_t[i]        <- sum(N[i, ] * Fec_bins)
-      YPR[i]           <- Yield[i] / max(1, Rcapacity[i])
 
       # SPR = stock egg production relative to the unfished equilibrium.
       # Values > 1 occur in favourable recruitment years (biologically meaningful).
@@ -418,6 +417,11 @@ run_population_simulation <- function(bin_midpoints, length_bins,
     sim_df$SPR[k]     <- mean(SPRt[idx], na.rm = TRUE)
     # Ratio of sums over the final 50 years (see fast path comment).
     sim_df$YPR[k]     <- sum(Yield[idx]) / max(1, sum(Rcapacity[idx]))
+    # Annual YPR for the time-series plots: yield_t over this replicate's
+    # mean recruitment in the final 50 years (not yield_t / R_t, which is
+    # biased upward). Its mean over those years equals sim_df$YPR[k].
+    fished        <- start_year:Ymax
+    YPR[fished]   <- Yield[fished] / max(1, mean(Rcapacity[idx]))
     sim_df$Prop[k]    <- mean(Prop[idx],     na.rm = TRUE)
     sim_df$Recruit[k] <- mean(Rcapacity[idx], na.rm = TRUE)
 
