@@ -1,0 +1,13 @@
+# regSim 0.2.0
+
+* YPR is now total yield over the final 50 years divided by total recruits
+  over the same years. The previous mean of annual yield / recruits ratios
+  inflated YPR by about 1 + rec_cv^2 under stochastic recruitment. The app's
+  YPR time series now averages to the reported YPR (#53).
+* Largemouth Bass and Smallmouth Bass presets use fixed species-median natural
+  mortality from Beamesderfer and North (1995): M = 0.46 and 0.43, held
+  constant across growth scenarios, in place of M = 1.5K (#52).
+
+# regSim 0.1.0
+
+* Initial version.
