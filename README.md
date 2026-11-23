@@ -77,7 +77,7 @@ Install directly from GitHub as an R package and launch the app:
 
 ```r
 install.packages("remotes")
-remotes::install_github("dsmi313/regSim")
+remotes::install_github("dsmi313/regSim", upgrade=F)
 regSim::run_app()
 ```
 
