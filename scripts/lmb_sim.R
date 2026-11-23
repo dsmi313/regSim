@@ -57,11 +57,11 @@ handlers(handler_progress(
 sp <- get_species_preset("lmb")
 
 # ── Growth presets ────────────────────────────────────────────────────────────
-# Moderate growth approximates FishBase median for largemouth bass.
-# Slow/fast represent the range across different lake productivity levels.
-#   Slow:     Linf=638 mm, K=0.17 yr-1, t0=-0.21
-#   Moderate: Linf=584 mm, K=0.22 yr-1, t0= 0.00  (FishBase median)
-#   Fast:     Linf=540 mm, K=0.28 yr-1, t0= 0.10
+# FishBase quartiles for largemouth bass (41 records not flagged questionable,
+# pulled Nov 23, 2026): K at the 25th/50th/75th percentiles, Linf inversely paired.
+#   Slow:     Linf=640 mm, K=0.16 yr-1, t0=-0.21
+#   Moderate: Linf=592 mm, K=0.21 yr-1, t0= 0.00  (FishBase median)
+#   Fast:     Linf=554 mm, K=0.28 yr-1, t0= 0.10
 growth_slow     <- get_growth_preset("lmb", "slow")
 growth_moderate <- get_growth_preset("lmb", "moderate")
 growth_fast     <- get_growth_preset("lmb", "fast")
