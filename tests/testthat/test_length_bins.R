@@ -5,14 +5,14 @@ test_that("make_length_bins returns consistent structure", {
   expect_length(b$bin_midpoints, b$L_bins)
 })
 
-test_that("bins span 0 to ceiling(1.2 * Linf) in 10mm steps by default", {
+test_that("bins span 0 to ceiling(1.6 * Linf) in 10mm steps by default", {
   b <- make_length_bins(353)
   expect_equal(b$length_bins[1], 0)
-  # 353 * 1.2 = 423.6 -> ceiling 424, which is not a multiple of 10, so the
-  # top edge is the last full 10mm step at or below it (420). The grid never
+  # 353 * 1.6 = 564.8 -> ceiling 565, which is not a multiple of 10, so the
+  # top edge is the last full 10mm step at or below it (560). The grid never
   # exceeds the ceiling and comes within one bin width of it.
-  expect_lte(max(b$length_bins), ceiling(353 * 1.2))
-  expect_gt(max(b$length_bins), ceiling(353 * 1.2) - 10)
+  expect_lte(max(b$length_bins), ceiling(353 * 1.6))
+  expect_gt(max(b$length_bins), ceiling(353 * 1.6) - 10)
   expect_true(all(abs(diff(b$length_bins) - 10) < 1e-9))
 })
 
@@ -27,7 +27,7 @@ test_that("custom bin_width is honoured", {
   expect_true(all(abs(diff(b$length_bins) - 25) < 1e-9))
 })
 
-test_that("matches the original inline grid construction", {
+test_that("max_mult = 1.2 reproduces the original inline grid construction", {
   Linf <- 584
   bin_width <- 10
   max_length <- ceiling(Linf * 1.2)
@@ -35,7 +35,8 @@ test_that("matches the original inline grid construction", {
   L_bins <- length(length_bins) - 1
   bin_midpoints <- (length_bins[-1] + length_bins[-(L_bins + 1)]) / 2
 
-  b <- make_length_bins(Linf)
+  # The pre-0.2.0 grid (0 to 1.2 Linf) is still available with max_mult = 1.2
+  b <- make_length_bins(Linf, max_mult = 1.2)
   expect_equal(b$length_bins,   length_bins)
   expect_equal(b$bin_midpoints, bin_midpoints)
   expect_equal(b$L_bins,        L_bins)

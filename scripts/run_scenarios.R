@@ -56,7 +56,8 @@ scenarios <- data.frame(
     t0            = sp$t0,
     bin_midpoints = bins$bin_midpoints,
     length_bins   = bins$length_bins,
-    growth_cv     = 0.10
+    growth_cv     = 0.15,
+    Amax          = sp$amax
   )
 
   vc <- make_vulnerability_curves(

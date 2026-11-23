@@ -79,8 +79,8 @@ ui <- fluidPage(
       numericInput("vbk", "K:", value = 0.374, min = 0.01, max = 1.5, step = 0.001),
       numericInput("t0", "t0:", value = 0.197, min = -1.0, max = 2.0, step = 0.001),
       
-      numericInput("growth_cv", "Growth CV:", value = 0.20, min = 0.0, max = 1.0, step = 0.05),
-      helpText(tags$small(tags$em("Coefficient of variation for length-at-age (0 = deterministic, 0.20 = 20% variation). Higher values produce more realistic overlapping size modes in the length-frequency distribution; lower values produce clearly delineated year-class modes. Adjust to match the modal structure in your observed data."))),
+      numericInput("growth_cv", "Growth CV (length at age):", value = 0.15, min = 0.0, max = 1.0, step = 0.05),
+      helpText(tags$small(tags$em("Coefficient of variation in length at age (default 0.15; 0 = deterministic). The SD of length at each age is CV times the mean length at that age, so absolute spread grows with age and some fish grow past Linf. Higher values produce more overlapping size modes in the length-frequency distribution; lower values produce clearly delineated year-class modes. Adjust to match length at age in your observed data."))),
       
       # Exploitation Parameters
       h4("Exploitation Parameters"),
@@ -205,7 +205,7 @@ ui <- fluidPage(
                  h4("Length-Frequency Distribution"),
                  helpText("Shows the distribution of fish lengths in the equilibrium population. Bars show mean abundance, shaded area shows 95% prediction interval (mean ± 1.96 × SD).",
                           tags$br(),
-                          tags$strong("Tip:"), " If year-class modes appear too sharply delineated compared to your data, increase the Growth CV parameter. A CV of 0.20 or higher typically produces the overlapping modes seen in most field length-frequency samples."),
+                          tags$strong("Tip:"), " If year-class modes appear too sharply delineated compared to your data, increase the Growth CV parameter."),
                  plotlyOutput("length_frequency", height = "400px"),
                  br(),
                  h4("Vulnerability by Length"),
@@ -291,7 +291,7 @@ ui <- fluidPage(
                  tags$ul(
                    tags$li(strong("Length bins:"), "10mm bins tracking fish by total length (TL)"),
                    tags$li(strong("Growth variability:"), "Individual variation in growth using mechanistic von Bertalanffy with coefficient of variation (CV)"),
-                   tags$li(strong("Growth transition matrix:"), "Probabilistic movement between length bins based on growth increment and CV"),
+                   tags$li(strong("Growth transition matrix:"), "Age-specific movement between length bins that holds the CV of length at age constant; fish keep their relative size, so some grow past Linf"),
                    tags$li(strong("Weight-length relationships:"), "Species-specific allometric relationships (W = a × L^b) from FishBase medians"),
                    tags$li(strong("Density-dependent recruitment (DDR):"), "Optional Beverton-Holt stock-recruitment with configurable steepness"),
                    tags$li(strong("Size-based selectivity:"), "Logistic vulnerability curves for capture and harvest"),
@@ -410,7 +410,7 @@ server <- function(input, output, session) {
       gm <- make_growth_matrix(
         Linf = growth_params$Linf, vbk = growth_params$vbk, t0 = growth_params$t0,
         bin_midpoints = bin_midpoints, length_bins = length_bins,
-        growth_cv = input$growth_cv
+        growth_cv = input$growth_cv, Amax = Amax
       )
 
       vc <- make_vulnerability_curves(
@@ -477,7 +477,7 @@ server <- function(input, output, session) {
             lb_k   <- bins_k$length_bins
             gm_k   <- make_growth_matrix(
               Linf = growth_samps$Linf[k], vbk = growth_samps$vbk[k], t0 = input$t0,
-              bin_midpoints = bm_k, length_bins = lb_k, growth_cv = input$growth_cv
+              bin_midpoints = bm_k, length_bins = lb_k, growth_cv = input$growth_cv, Amax = Amax
             )
             vc_k   <- make_vulnerability_curves(
               bin_midpoints    = bm_k,
@@ -1090,7 +1090,7 @@ server <- function(input, output, session) {
       gm <- make_growth_matrix(
         Linf = growth_params$Linf, vbk = growth_params$vbk, t0 = growth_params$t0,
         bin_midpoints = bin_midpoints, length_bins = length_bins,
-        growth_cv = input$growth_cv
+        growth_cv = input$growth_cv, Amax = Amax
       )
 
       vc <- make_vulnerability_curves(

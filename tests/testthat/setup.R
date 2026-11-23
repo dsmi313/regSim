@@ -21,4 +21,5 @@ if (!requireNamespace("regSim", quietly = TRUE)) {
   source(file.path(pkg_root, "R", "summarize.R"))
   source(file.path(pkg_root, "R", "yield_curve.R"))
   source(file.path(pkg_root, "R", "validation_checks.R"))
+  source(file.path(pkg_root, "R", "uncertainty.R"))
 }

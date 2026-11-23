@@ -34,8 +34,9 @@ interface for exploring those tradeoffs without writing code.
 - **Species presets** (white crappie, black crappie, walleye, largemouth bass,
   smallmouth bass, channel catfish, blue catfish) with slow / moderate / fast
   growth scenarios
-- **Growth CV** — coefficient of variation in length-at-age; higher values
-  produce more realistic, less modal length-frequency distributions
+- **Growth CV** — coefficient of variation in length at age (default 0.15);
+  spread grows with age and some fish grow past L∞. Higher values produce
+  less modal length-frequency distributions
 
 **Outputs and metrics**
 

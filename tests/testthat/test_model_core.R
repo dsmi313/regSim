@@ -1,6 +1,6 @@
 # Shared grid setup used across multiple tests
 make_wc_grid <- function(Linf = 353) {
-  max_length  <- ceiling(Linf * 1.2)
+  max_length  <- ceiling(Linf * 1.6)
   length_bins <- seq(0, max_length, by = 10)
   L_bins      <- length(length_bins) - 1
   bin_midpoints <- (length_bins[-1] + length_bins[-(L_bins + 1)]) / 2
@@ -9,37 +9,60 @@ make_wc_grid <- function(Linf = 353) {
 
 # ---- make_growth_matrix --------------------------------------------------------
 
+test_that("make_growth_matrix holds the CV of length at age and tracks the VB mean", {
+  g  <- make_wc_grid()
+  gm <- make_growth_matrix(353, 0.374, 0.197, g$bin_midpoints, g$length_bins, 0.20, Amax = 8L)
+  v  <- gm$recruit_dist
+  for (a in 1:8) {
+    mu <- sum(v * g$bin_midpoints)
+    cv <- sqrt(sum(v * (g$bin_midpoints - mu)^2)) / mu
+    expect_lt(abs(mu - gm$mean_length_at_age[a]), 2)
+    expect_lt(abs(cv - 0.20), 0.02)
+    if (a < 8) v <- drop(v %*% gm$Growth_matrix[, , a])
+  }
+  # Spread grows with age, so some age-8 fish are longer than Linf
+  expect_gt(sum(v[g$bin_midpoints > 353]), 0.2)
+})
+
+test_that("make_growth_matrix requires Amax", {
+  g <- make_wc_grid()
+  expect_error(make_growth_matrix(353, 0.374, 0.197, g$bin_midpoints, g$length_bins, 0.20),
+               "Amax")
+})
+
+
 test_that("make_growth_matrix row-sums are 1 (stochastic matrix)", {
   g <- make_wc_grid()
-  gm <- make_growth_matrix(353, 0.374, 0.197, g$bin_midpoints, g$length_bins, 0.20)
-  expect_true(all(abs(rowSums(gm$Growth_matrix) - 1) < 1e-9))
+  gm <- make_growth_matrix(353, 0.374, 0.197, g$bin_midpoints, g$length_bins, 0.20, Amax = 8L)
+  expect_true(all(abs(apply(gm$Growth_matrix, 3, rowSums) - 1) < 1e-9))
 })
 
 test_that("make_growth_matrix recruit_dist sums to 1", {
   g <- make_wc_grid()
-  gm <- make_growth_matrix(353, 0.374, 0.197, g$bin_midpoints, g$length_bins, 0.20)
+  gm <- make_growth_matrix(353, 0.374, 0.197, g$bin_midpoints, g$length_bins, 0.20, Amax = 8L)
   expect_equal(sum(gm$recruit_dist), 1, tolerance = 1e-9)
 })
 
 test_that("make_growth_matrix all values non-negative", {
   g <- make_wc_grid()
-  gm <- make_growth_matrix(353, 0.374, 0.197, g$bin_midpoints, g$length_bins, 0.20)
+  gm <- make_growth_matrix(353, 0.374, 0.197, g$bin_midpoints, g$length_bins, 0.20, Amax = 8L)
   expect_true(all(gm$Growth_matrix >= 0))
   expect_true(all(gm$recruit_dist  >= 0))
 })
 
 test_that("make_growth_matrix deterministic (CV = 0): each row has exactly one 1", {
   g <- make_wc_grid()
-  gm <- make_growth_matrix(353, 0.374, 0.197, g$bin_midpoints, g$length_bins, 0)
-  expect_true(all(rowSums(gm$Growth_matrix > 0) == 1))
+  gm <- make_growth_matrix(353, 0.374, 0.197, g$bin_midpoints, g$length_bins, 0, Amax = 8L)
+  expect_true(all(apply(gm$Growth_matrix > 0, 3, rowSums) == 1))
   expect_equal(sum(gm$recruit_dist > 0), 1)
 })
 
 test_that("make_growth_matrix returns correct structure", {
   g  <- make_wc_grid()
-  gm <- make_growth_matrix(353, 0.374, 0.197, g$bin_midpoints, g$length_bins, 0.20)
-  expect_named(gm, c("Growth_matrix", "recruit_dist"))
-  expect_equal(dim(gm$Growth_matrix), c(g$L_bins, g$L_bins))
+  gm <- make_growth_matrix(353, 0.374, 0.197, g$bin_midpoints, g$length_bins, 0.20, Amax = 8L)
+  expect_named(gm, c("Growth_matrix", "recruit_dist", "mean_length_at_age"))
+  expect_equal(dim(gm$Growth_matrix), c(g$L_bins, g$L_bins, 7L))
+  expect_length(gm$mean_length_at_age, 8L)
   expect_length(gm$recruit_dist, g$L_bins)
 })
 
@@ -103,7 +126,7 @@ test_that("make_vulnerability_curves returns expected named list", {
 # Helper: build white-crappie inputs for a fast test run
 make_wc_inputs <- function(nsim = 20) {
   g  <- make_wc_grid()
-  gm <- make_growth_matrix(353, 0.374, 0.197, g$bin_midpoints, g$length_bins, 0.20)
+  gm <- make_growth_matrix(353, 0.374, 0.197, g$bin_midpoints, g$length_bins, 0.20, Amax = 8L)
   vc <- make_vulnerability_curves(
     g$bin_midpoints, 204, 254, 180, 305, 2.40991e-6, 3.38, 0.374, 1.27
   )
@@ -248,4 +271,18 @@ test_that("'traditional' is still accepted as the old name for a harvest slot", 
   new <- do.call(make_vulnerability_curves, c(args, slot_type = "harvest"))
   old <- do.call(make_vulnerability_curves, c(args, slot_type = "traditional"))
   expect_equal(new$Vulharv_bins, old$Vulharv_bins)
+})
+
+test_that("run_population_simulation still accepts a single growth matrix", {
+  set.seed(9)
+  inp <- make_wc_inputs(nsim = 3)
+  inp$Growth_matrix <- inp$Growth_matrix[, , 1]
+  out <- do.call(run_population_simulation, c(inp, collect_full_output = FALSE))
+  expect_true(all(is.finite(out$sim_df$SPR)))
+})
+
+test_that("run_population_simulation rejects an array with the wrong number of ages", {
+  inp <- make_wc_inputs(nsim = 2)
+  inp$Amax <- 9L
+  expect_error(do.call(run_population_simulation, c(inp, collect_full_output = FALSE)), "Amax")
 })

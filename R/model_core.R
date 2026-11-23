@@ -1,8 +1,16 @@
-#' Build the length-bin growth transition matrix and recruit distribution
+#' Build the age-specific growth transition matrices and recruit distribution
 #'
-#' Constructs the probabilistic length-bin transition matrix and the age-1
-#' recruit size distribution from von Bertalanffy growth parameters and a
-#' coefficient of variation in length-at-age.
+#' Growth variability is a coefficient of variation in length at age: at every
+#' age \eqn{a}, length is approximately Normal with mean
+#' \eqn{\mu_a = L_\infty (1 - e^{-K (a - t_0)})} and standard deviation
+#' \code{growth_cv} \eqn{\times \mu_a}. Fish keep their relative size from year
+#' to year: a fish of length \eqn{L} at age \eqn{a} grows to
+#' \eqn{L \mu_{a+1} / \mu_a}, which is equivalent to each fish carrying its own
+#' asymptotic length. Absolute spread therefore grows with age and individual
+#' fish can exceed the mean \eqn{L_\infty}. Within a length bin fish are treated
+#' as uniformly distributed, and each bin's fish are spread over the
+#' destination bins their scaled range overlaps (numbers are conserved; fish
+#' beyond the last bin edge go to the last bin).
 #'
 #' @param Linf Asymptotic length (mm), von Bertalanffy \eqn{L_\infty}.
 #' @param vbk Brody growth coefficient, von Bertalanffy \eqn{K}.
@@ -10,68 +18,65 @@
 #' @param bin_midpoints Numeric vector of length-bin midpoints (mm).
 #' @param length_bins Numeric vector of length-bin edges (mm); one longer than
 #'   \code{bin_midpoints}.
-#' @param growth_cv Coefficient of variation in length-at-age. \code{0} gives a
-#'   deterministic matrix (each bin maps to a single destination bin).
+#' @param growth_cv Coefficient of variation in length at age (default 0.15).
+#'   \code{0} gives deterministic growth (each bin maps to a single bin).
+#' @param Amax Maximum age class (years). One transition matrix is built for
+#'   each age 1 to \code{Amax - 1}.
 #'
-#' @return A list with components \code{Growth_matrix} (a row-stochastic
-#'   \code{L x L} matrix) and \code{recruit_dist} (a length-\code{L} probability
-#'   vector summing to 1).
+#' @return A list with \code{Growth_matrix}, an \code{L x L x (Amax - 1)} array
+#'   whose slice \code{a} is the row-stochastic transition from age \code{a} to
+#'   age \code{a + 1}; \code{recruit_dist}, the age-1 length distribution
+#'   (sums to 1); and \code{mean_length_at_age} (\eqn{\mu_1, ..., \mu_{Amax}}).
 #' @importFrom stats pnorm
 #' @export
-make_growth_matrix <- function(Linf, vbk, t0, bin_midpoints, length_bins, growth_cv) {
-  L_bins   <- length(bin_midpoints)
-  bin_width <- length_bins[2] - length_bins[1]
+make_growth_matrix <- function(Linf, vbk, t0, bin_midpoints, length_bins,
+                               growth_cv = 0.15, Amax) {
+  if (missing(Amax) || is.null(Amax) || Amax < 2)
+    stop("make_growth_matrix(): Amax (maximum age, >= 2) is required.")
+  Amax   <- as.integer(Amax)
+  L_bins <- length(bin_midpoints)
+  lo     <- length_bins[-(L_bins + 1)]
+  hi     <- length_bins[-1]
 
-  Growth_matrix <- matrix(0, nrow = L_bins, ncol = L_bins)
-  for (i in seq_len(L_bins)) {
-    current_length   <- bin_midpoints[i]
-    growth_increment <- max(0.1, (Linf - current_length) * (1 - exp(-vbk)))
-    expected_length  <- current_length + growth_increment
+  # Mean length at age, floored at 1 mm so the growth ratios stay finite
+  mu <- pmax(1, Linf * (1 - exp(-vbk * (seq_len(Amax) - t0))))
 
-    if (growth_cv == 0) {
-      next_bin <- which.min(abs(bin_midpoints - expected_length))
-      Growth_matrix[i, next_bin] <- 1
-      next
+  Growth_matrix <- array(0, dim = c(L_bins, L_bins, Amax - 1L))
+  for (a in seq_len(Amax - 1L)) {
+    r <- mu[a + 1L] / mu[a]
+    G <- matrix(0, L_bins, L_bins)
+    for (i in seq_len(L_bins)) {
+      if (growth_cv == 0) {
+        G[i, which.min(abs(bin_midpoints - bin_midpoints[i] * r))] <- 1
+        next
+      }
+      new_lo <- lo[i] * r
+      new_hi <- hi[i] * r
+      overlap <- pmax(0, pmin(hi, new_hi) - pmax(lo, new_lo))
+      beyond  <- max(0, new_hi - max(hi[L_bins], new_lo))
+      overlap[L_bins] <- overlap[L_bins] + beyond
+      tot <- sum(overlap)
+      if (tot > 0) G[i, ] <- overlap / tot else G[i, L_bins] <- 1
     }
-
-    growth_sd <- max(1, growth_increment * growth_cv, bin_width * 0.15)
-    if (current_length >= Linf * 0.99) {
-      growth_increment <- 0.1
-      growth_sd        <- max(1, bin_width * 0.15)
-      expected_length  <- current_length + growth_increment
-    }
-
-    for (j in seq_len(L_bins)) {
-      Growth_matrix[i, j] <- pnorm(length_bins[j + 1], expected_length, growth_sd) -
-                              pnorm(length_bins[j],     expected_length, growth_sd)
-    }
-    row_sum <- sum(Growth_matrix[i, ])
-    if (row_sum > 0) {
-      Growth_matrix[i, ] <- Growth_matrix[i, ] / row_sum
-    } else {
-      Growth_matrix[i, i] <- 1.0
-    }
+    Growth_matrix[, , a] <- G
   }
 
-  age1_mean_length <- Linf * (1 - exp(-vbk * (1 - t0)))
-  recruit_dist     <- rep(0, L_bins)
-
+  # Age-1 recruits: Normal(mu_1, growth_cv * mu_1), binned
+  recruit_dist <- rep(0, L_bins)
   if (growth_cv == 0) {
-    recruit_dist[which.min(abs(bin_midpoints - age1_mean_length))] <- 1.0
+    recruit_dist[which.min(abs(bin_midpoints - mu[1]))] <- 1.0
   } else {
-    age1_sd_length <- max(0.5, age1_mean_length * growth_cv)
-    for (j in seq_len(L_bins)) {
-      recruit_dist[j] <- max(0, pnorm(length_bins[j + 1], age1_mean_length, age1_sd_length) -
-                                 pnorm(length_bins[j],     age1_mean_length, age1_sd_length))
-    }
+    recruit_dist <- pmax(0, pnorm(hi, mu[1], growth_cv * mu[1]) -
+                            pnorm(lo, mu[1], growth_cv * mu[1]))
     if (sum(recruit_dist) > 0) {
       recruit_dist <- recruit_dist / sum(recruit_dist)
     } else {
-      recruit_dist[which.min(abs(bin_midpoints - age1_mean_length))] <- 1.0
+      recruit_dist[which.min(abs(bin_midpoints - mu[1]))] <- 1.0
     }
   }
 
-  list(Growth_matrix = Growth_matrix, recruit_dist = recruit_dist)
+  list(Growth_matrix = Growth_matrix, recruit_dist = recruit_dist,
+       mean_length_at_age = mu)
 }
 
 
@@ -172,6 +177,8 @@ make_vulnerability_curves <- function(bin_midpoints,
 #'
 #' @param bin_midpoints,length_bins Length-bin midpoints and edges (mm).
 #' @param Growth_matrix,recruit_dist Outputs of \code{\link{make_growth_matrix}}.
+#'   \code{Growth_matrix} is normally the \code{L x L x (Amax - 1)} age-specific
+#'   array; a single \code{L x L} matrix applied to every age is also accepted.
 #' @param Vulcap_bins,Vulharv_bins,trophyvul_bins,Fec_bins,Wt_bins,S_bins
 #'   Per-bin arrays from \code{\link{make_vulnerability_curves}}.
 #' @param Amax Maximum age class (years).
@@ -222,6 +229,25 @@ run_population_simulation <- function(bin_midpoints, length_bins,
   sigmaR       <- sqrt(log(rec_cv ^ 2 + 1))
   burnin_years <- min(Ymax, Amax + 20)
 
+  # --- Growth: age-specific matrices (array) or one matrix for all ages -------
+  if (length(dim(Growth_matrix)) == 3L) {
+    if (dim(Growth_matrix)[3] != Amax - 1L)
+      stop("Growth_matrix has ", dim(Growth_matrix)[3], " age slices but Amax - 1 = ",
+           Amax - 1L, "; build it with make_growth_matrix(..., Amax = Amax).")
+    G_list <- lapply(seq_len(Amax - 1L), function(a) Growth_matrix[, , a])
+  } else {
+    G_list <- NULL
+  }
+  grow <- function(age_survive) {
+    out <- matrix(0, Amax, L_bins)
+    if (is.null(G_list)) {
+      out[2:Amax, ] <- age_survive[1:(Amax - 1), , drop = FALSE] %*% Growth_matrix
+    } else {
+      for (a in seq_len(Amax - 1L)) out[a + 1L, ] <- age_survive[a, ] %*% G_list[[a]]
+    }
+    out
+  }
+
   # --- Pre-compute constant arrays (invariant across all replicates) ----------
   S_mat               <- matrix(S_bins,       nrow = Amax, ncol = L_bins, byrow = TRUE)
   Survival_mat        <- matrix(Survival_bins, nrow = Amax, ncol = L_bins, byrow = TRUE)
@@ -240,8 +266,7 @@ run_population_simulation <- function(bin_midpoints, length_bins,
   eggs_burnin_ref[1]    <- sum(N_burnin[1, ] * Fec_bins)
   for (init_year in 2:burnin_years) {
     age_survive                <- burnin_age_len * S_mat
-    burnin_age_len[]           <- 0
-    burnin_age_len[2:Amax, ]   <- age_survive[1:(Amax - 1), ] %*% Growth_matrix
+    burnin_age_len             <- grow(age_survive)
     burnin_age_len[1, ]        <- Ro * recruit_dist
     N_burnin[init_year, ]      <- colSums(burnin_age_len)
     eggs_burnin_ref[init_year] <- sum(N_burnin[init_year, ] * Fec_bins)
@@ -313,8 +338,7 @@ run_population_simulation <- function(bin_midpoints, length_bins,
         }
 
         age_survive       <- age_len * Survival_mat
-        age_len[]         <- 0
-        age_len[2:Amax, ] <- age_survive[1:(Amax - 1), ] %*% Growth_matrix
+        age_len           <- grow(age_survive)
         age_len[1, ]      <- Rcapacity[i] * recruit_dist
         N_cur             <- colSums(age_len)
         eggs_cur          <- sum(N_cur * Fec_bins)
@@ -398,8 +422,7 @@ run_population_simulation <- function(bin_midpoints, length_bins,
       }
 
       age_survive           <- age_len * Survival_mat
-      new_age_len           <- matrix(0, Amax, L_bins)
-      new_age_len[2:Amax, ] <- age_survive[1:(Amax - 1), ] %*% Growth_matrix
+      new_age_len           <- grow(age_survive)
       new_age_len[1, ]      <- Rcapacity[i] * recruit_dist
       age_len               <- new_age_len
       N[i, ]                <- colSums(age_len)

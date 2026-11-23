@@ -1,7 +1,7 @@
 # Build white-crappie engine inputs for a small yield-curve run
 make_yc_inputs <- function() {
   b  <- make_length_bins(353)
-  gm <- make_growth_matrix(353, 0.374, 0.197, b$bin_midpoints, b$length_bins, 0.20)
+  gm <- make_growth_matrix(353, 0.374, 0.197, b$bin_midpoints, b$length_bins, 0.20, Amax = 8L)
   vc <- make_vulnerability_curves(
     b$bin_midpoints, 204, 254, 180, 305, 2.40991e-6, 3.38, 0.374, 1.27
   )
