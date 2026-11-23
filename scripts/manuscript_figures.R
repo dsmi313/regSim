@@ -160,7 +160,9 @@ make_violin_figure <- function(df, species_label, scen_levels, target_U) {
     scen_levels
   )
   
-  make_vp <- function(metric, xlab, hline = NULL, pct = FALSE) {
+  # from_zero = TRUE anchors the axis at 0 (SPR, so the 0.30 threshold reads in
+  # context). Otherwise the axis fits the data, still shared across the U rows.
+  make_vp <- function(metric, xlab, hline = NULL, pct = FALSE, from_zero = FALSE) {
     p <- ggplot(violin_df, aes(y = scenario, x = .data[[metric]], fill = scenario)) +
       geom_violin(alpha = 0.6, linewidth = 0.3, trim = TRUE) +
       geom_boxplot(width = 0.25, outlier.shape = NA, colour = "grey20",
@@ -172,14 +174,15 @@ make_violin_figure <- function(df, species_label, scen_levels, target_U) {
     if (!is.null(hline))
       p <- p + geom_vline(xintercept = hline, linetype = "dashed",
                           colour = "grey40", linewidth = 0.5)
+    lims <- if (from_zero) c(0, NA) else NULL
     if (pct)
-      p <- p + scale_x_continuous(labels = scales::percent_format(), limits = c(0, NA))
+      p <- p + scale_x_continuous(labels = scales::percent_format(), limits = lims)
     else
-      p <- p + scale_x_continuous(limits = c(0, NA))
+      p <- p + scale_x_continuous(limits = lims)
     p
   }
   
-  p_spr  <- make_vp("SPR",  "SPR",            hline = 0.30, pct = TRUE) +
+  p_spr  <- make_vp("SPR",  "SPR",            hline = 0.30, pct = TRUE, from_zero = TRUE) +
     theme(axis.text.y = element_text())
   p_ypr  <- make_vp("YPR",  "YPR (kg)")
   p_prop <- make_vp("Prop", "Prop. memorable", pct = TRUE)
