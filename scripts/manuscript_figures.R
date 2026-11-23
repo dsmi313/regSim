@@ -165,8 +165,11 @@ make_violin_figure <- function(df, species_label, scen_levels, target_U) {
   make_vp <- function(metric, xlab, hline = NULL, pct = FALSE, from_zero = FALSE) {
     p <- ggplot(violin_df, aes(y = scenario, x = .data[[metric]], fill = scenario)) +
       geom_violin(alpha = 0.6, linewidth = 0.3, trim = TRUE) +
-      geom_boxplot(width = 0.25, outlier.shape = NA, colour = "grey20",
-                   linewidth = 0.4, fill = "white", alpha = 0.8) +
+      stat_summary(fun = median,
+                   fun.min = function(x) quantile(x, 0.025),
+                   fun.max = function(x) quantile(x, 0.975),
+                   geom = "pointrange", colour = "black",
+                   size = 0.3, linewidth = 0.5) +
       facet_wrap(~ U_label, ncol = 1, scales = "fixed") +
       scale_fill_manual(values = scen_colors) +
       labs(x = xlab) +
