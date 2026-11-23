@@ -42,8 +42,8 @@ ui <- fluidPage(
       numericInput("mat_size", "Maturity Size (mm):", value = 200, min = 50, max = 500, step = 10),
       helpText(tags$small(tags$em("Fish at this size are sexually mature"))),
       
-      numericInput("memorable_size", "Memorable Size (mm):", value = 305, min = 100, max = 700, step = 5),
-      numericInput("stock_size", "Stock Size (mm):", value = 127, min = 50, max = 400, step = 1),
+      numericInput("memorable_size", "Memorable Size (mm):", value = 300, min = 100, max = 700, step = 5),
+      numericInput("stock_size", "Stock Size (mm):", value = 130, min = 50, max = 400, step = 1),
       helpText(tags$small(tags$em("Proportion memorable = memorable-size fish / stock-size fish (Gabelhouse 1984 length categories)."))),
       helpText(tags$small(tags$em("Trophy/quality fish threshold"))),
       

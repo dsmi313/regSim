@@ -47,7 +47,7 @@ handlers(handler_progress(
 
 # ── Species preset ────────────────────────────────────────────────────────────
 # wl_a = 6.63e-6, wl_b = 3.10  (W in kg, L in mm)
-# mat_size = 356 mm (~14 in.), memorable_size = 635 mm (~25 in.)
+# mat_size = 356 mm (~14 in.), memorable_size = 630 mm (Gabelhouse 1984a, 63 cm)
 # capsize = 330 mm (50% capture vulnerability)
 # rec_cv = 1.1, amax = 15, ymax = 135, fec_exp = 1.18
 sp <- get_species_preset("walleye")

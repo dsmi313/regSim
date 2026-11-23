@@ -66,12 +66,15 @@ test_that("all numeric preset values are positive", {
   }
 })
 
-test_that("stock sizes are Gabelhouse (1984) stock lengths, below memorable size", {
-  stock <- c(white_crappie = 127, black_crappie = 127, walleye = 254, lmb = 203,
-             smb = 178, channel_catfish = 279, blue_catfish = 305)
+test_that("stock and memorable sizes are Gabelhouse (1984a) metric lengths", {
+  stock <- c(white_crappie = 130, black_crappie = 130, walleye = 250, lmb = 200,
+             smb = 180, channel_catfish = 280, blue_catfish = 300)
+  memorable <- c(white_crappie = 300, black_crappie = 300, walleye = 630, lmb = 510,
+                 smb = 430, channel_catfish = 710, blue_catfish = 890)
   for (sp in names(stock)) {
     p <- get_species_preset(sp)
     expect_equal(p$stock_size, stock[[sp]])
+    expect_equal(p$memorable_size, memorable[[sp]])
     expect_lt(p$stock_size, p$memorable_size)
   }
 })

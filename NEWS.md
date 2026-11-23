@@ -15,9 +15,11 @@
   limit.
 * Proportion memorable is now memorable-size fish divided by stock-size fish
   (an RSD-M-type index; Gabelhouse 1984), not divided by every fish in the
-  population. Species presets gain `stock_size` (Gabelhouse stock lengths in
-  inches converted to mm: crappies 127, Walleye 254, Largemouth Bass 203,
-  Smallmouth Bass 178, Channel Catfish 279, Blue Catfish 305).
+  population. Species presets gain `stock_size`, and stock and memorable sizes
+  now use the Gabelhouse (1984a) metric lengths: stock 130 (crappies), 250
+  (Walleye), 200 (Largemouth Bass), 180 (Smallmouth Bass), 280 (Channel
+  Catfish), 300 mm (Blue Catfish); memorable 300, 630, 510, 430, 710 and
+  890 mm (previously inch conversions: 305, 635, 508, 432, 711, 889 mm).
   `make_vulnerability_curves(stock_size =)` returns `stockvul_bins`, which
   `run_population_simulation()`, `run_yield_curve()` and
   `run_uncertainty_simulation()` accept; the app has a Stock Size input.

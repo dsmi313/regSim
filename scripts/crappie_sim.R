@@ -35,7 +35,7 @@ handlers(handler_progress(
 
 # ── Species preset ────────────────────────────────────────────────────────────
 # wl_a = 2.41e-6, wl_b = 3.38  (W in kg, L in mm)
-# mat_size = 180 mm, memorable_size = 305 mm (12 in.)
+# mat_size = 180 mm, memorable_size = 300 mm (Gabelhouse 1984a, 30 cm)
 # capsize = 204 mm (50% capture vulnerability)
 # rec_cv = 0.8, amax = 8, ymax = 128, fec_exp = 1.27
 sp <- get_species_preset("white_crappie")

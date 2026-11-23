@@ -51,7 +51,7 @@ handlers(handler_progress(
 
 # ── Species preset ────────────────────────────────────────────────────────────
 # wl_a = 8.16e-6, wl_b = 3.10  (W in kg, L in mm)
-# mat_size = 203 mm (~8 in.), memorable_size = 508 mm (~20 in.)
+# mat_size = 203 mm (~8 in.), memorable_size = 510 mm (Gabelhouse 1984a, 51 cm)
 # capsize = 280 mm (50% capture vulnerability)
 # rec_cv = 0.5, amax = 12, ymax = 132, fec_exp = 1.18
 sp <- get_species_preset("lmb")
