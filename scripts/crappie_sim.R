@@ -71,7 +71,7 @@ nsim <- 10000L   # Monte Carlo replicates per scenario × growth × U combinatio
 scen1_name        <- "Min. length 254 mm (10 in.)"
 scen1_Harvlim     <- 254
 scen1_enable_slot <- FALSE
-scen1_slot_type   <- "traditional"   # slot args are ignored when enable_slot=FALSE
+scen1_slot_type   <- "harvest"   # slot args are ignored when enable_slot=FALSE
 scen1_slot_upper  <- NA_real_
 scen1_DisMort     <- 0.09            # 9% release mortality (Smith et al. 2025)
 
@@ -83,7 +83,7 @@ scen1_DisMort     <- 0.09            # 9% release mortality (Smith et al. 2025)
 scen2_name            <- "Max. length 305 mm (12 in.)"
 scen2_Harvlim         <- 0
 scen2_enable_slot     <- FALSE
-scen2_slot_type       <- "traditional"
+scen2_slot_type       <- "harvest"
 scen2_slot_upper      <- NA_real_
 scen2_enable_max      <- TRUE
 scen2_max_size        <- 305
@@ -96,11 +96,11 @@ scen2_DisMort         <- 0.09
 scen3_name        <- "No regulation"
 scen3_Harvlim     <- 0
 scen3_enable_slot <- FALSE
-scen3_slot_type   <- "traditional"
+scen3_slot_type   <- "harvest"
 scen3_slot_upper  <- NA_real_
 scen3_DisMort     <- 0.09
 
-# Scenario 4: Traditional slot 254-356 mm (10-14 in.)
+# Scenario 4: Harvest slot 254-356 mm (10-14 in.)
 # Fish within the 10-14" slot are harvestable; fish below 10" or above 14"
 # must be released. Under live-sonar exploitation, the slot concentrates
 # harvest pressure on quality-class fish while protecting the smallest and
@@ -108,7 +108,7 @@ scen3_DisMort     <- 0.09
 scen4_name        <- "Slot 254-356 mm (10-14 in.)"
 scen4_Harvlim     <- 254
 scen4_enable_slot <- TRUE
-scen4_slot_type   <- "traditional"     # fish WITHIN [Harvlim, slot_upper] are harvestable
+scen4_slot_type   <- "harvest"     # fish WITHIN [Harvlim, slot_upper] are harvestable
 scen4_slot_upper  <- 356              # 14 in. = 355.6 mm → 356 mm
 scen4_DisMort     <- 0.09
 

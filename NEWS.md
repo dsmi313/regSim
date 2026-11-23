@@ -7,6 +7,11 @@
 * Largemouth Bass and Smallmouth Bass presets use fixed species-median natural
   mortality from Beamesderfer and North (1995): M = 0.46 and 0.43, held
   constant across growth scenarios, in place of M = 1.5K (#52).
+* "Traditional slot" is now "harvest slot" throughout the app, code and
+  scripts (`slot_type = "harvest"`). `slot_type = "traditional"` still works
+  as the old name.
+* Case-study scripts set a fixed seed so reruns reproduce the published
+  numbers.
 
 # regSim 0.1.0
 

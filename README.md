@@ -17,7 +17,7 @@ interface for exploring those tradeoffs without writing code.
 - **Minimum-length limit** — set the size at which fish become harvestable
 - **Protective slot limit** — protect fish within a size range (e.g. 12–16 in),
   harvest allowed above and below
-- **Traditional slot limit** — harvest restricted to fish *within* the slot,
+- **Harvest slot limit** — harvest restricted to fish *within* the slot,
   protecting large broodstock
 - **Maximum-length limit** — cap harvest size to protect large, highly fecund
   fish

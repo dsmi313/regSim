@@ -67,12 +67,12 @@ species_config <- list(
     scen_levels  = c(
       "Min. length 356 mm (14 in.)",
       "Min. length 457 mm (18 in.)",
-      "Traditional slot 356-457 mm"
+      "Harvest slot 356-457 mm"
     ),
     scen_colors  = c(
       "Min. length 356 mm (14 in.)" = "#1b7837",
       "Min. length 457 mm (18 in.)" = "#762a83",
-      "Traditional slot 356-457 mm" = "#d6604d"
+      "Harvest slot 356-457 mm" = "#d6604d"
     ),
     growth_filter = "moderate",
     target_U      = c(0.15, 0.30, 0.50)

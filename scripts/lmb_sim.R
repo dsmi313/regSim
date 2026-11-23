@@ -90,7 +90,7 @@ nsim <- 10000L
 scen1_name        <- "Min. length 305 mm, low mortality"
 scen1_Harvlim     <- 305
 scen1_enable_slot <- FALSE
-scen1_slot_type   <- "traditional"
+scen1_slot_type   <- "harvest"
 scen1_slot_upper  <- NA_real_
 scen1_DisMort     <- 0.05   # Muoneke and Childress 1994 (<5% for artificial lures)
 
@@ -98,7 +98,7 @@ scen1_DisMort     <- 0.05   # Muoneke and Childress 1994 (<5% for artificial lur
 scen2_name        <- "Min. length 305 mm, high mortality"
 scen2_Harvlim     <- 305
 scen2_enable_slot <- FALSE
-scen2_slot_type   <- "traditional"
+scen2_slot_type   <- "harvest"
 scen2_slot_upper  <- NA_real_
 scen2_DisMort     <- 0.20   # tournament conditions; Neal and Lopez-Clayton 2001
 

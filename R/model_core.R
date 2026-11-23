@@ -80,7 +80,7 @@ make_growth_matrix <- function(Linf, vbk, t0, bin_midpoints, length_bins, growth
 #' Computes all per-length-bin quantities that do not depend on the exploitation
 #' rate \code{U}: capture and harvest vulnerability, trophy vulnerability,
 #' weight, fecundity, the maturity ogive, and stage-structured natural mortality
-#' and survival. Supports minimum-length, traditional/protective slot, and
+#' and survival. Supports minimum-length, harvest/protective slot, and
 #' maximum-length regulations.
 #'
 #' @param bin_midpoints Numeric vector of length-bin midpoints (mm).
@@ -92,7 +92,7 @@ make_growth_matrix <- function(Linf, vbk, t0, bin_midpoints, length_bins, growth
 #' @param nat_mort Adult instantaneous natural mortality \eqn{M}.
 #' @param fec_exp Fecundity-weight exponent.
 #' @param enable_slot Logical; apply a slot limit.
-#' @param slot_type \code{"traditional"} (keep within slot) or
+#' @param slot_type \code{"harvest"} (keep within slot) or
 #'   \code{"protective"} (protect within slot).
 #' @param slot_upper Upper edge of the slot (mm); required when
 #'   \code{enable_slot = TRUE}.
@@ -109,7 +109,7 @@ make_vulnerability_curves <- function(bin_midpoints,
                                       mat_size, memorable_size,
                                       wl_a, wl_b, nat_mort, fec_exp,
                                       enable_slot     = FALSE,
-                                      slot_type       = "traditional",
+                                      slot_type       = "harvest",
                                       slot_upper      = NULL,
                                       enable_max_limit = FALSE,
                                       max_harvest_size = NULL) {
@@ -128,7 +128,8 @@ make_vulnerability_curves <- function(bin_midpoints,
     Effective_min        <- max(Harvlim, Capsize)
     Vulharv_above_min    <- 1 / (1 + exp(-(bin_midpoints - Effective_min) / slope))
     Vulharv_below_max    <- 1 / (1 + exp( (bin_midpoints - slot_upper)    / slope))
-    if (slot_type == "traditional") {
+    # "traditional" is accepted as the pre-0.2.0 name for a harvest slot.
+    if (slot_type %in% c("harvest", "traditional")) {
       Vulharv_bins <- Vulharv_above_min * Vulharv_below_max
     } else {
       Vulharv_bins <- (1 - (Vulharv_above_min * Vulharv_below_max)) * Vulcap_bins

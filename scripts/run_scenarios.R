@@ -27,7 +27,7 @@ U_sweep  <- seq(0, 0.80, by = 0.05)  # exploitation-rate grid for yield curves
 #   name        – scenario label
 #   Harvlim     – minimum harvest length (mm)
 #   enable_slot – TRUE for slot regulations
-#   slot_type   – "protective" (protect fish within slot) or "traditional"
+#   slot_type   – "protective" (protect fish within slot) or "harvest"
 #   slot_upper  – upper slot edge (mm); NA when enable_slot is FALSE
 #   DisMort     – discard / release mortality rate (0-1)
 scenarios <- data.frame(
@@ -70,7 +70,7 @@ scenarios <- data.frame(
     nat_mort       = sp$nat_mort,
     fec_exp        = sp$fec_exp,
     enable_slot    = enable_slot,
-    slot_type      = if (isTRUE(enable_slot)) slot_type else "traditional",
+    slot_type      = if (isTRUE(enable_slot)) slot_type else "harvest",
     slot_upper     = if (isTRUE(enable_slot)) slot_upper else NULL
   )
 

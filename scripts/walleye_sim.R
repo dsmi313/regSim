@@ -84,7 +84,7 @@ nsim <- 10000L
 scen1_name        <- "Min. length 356 mm (14 in.)"
 scen1_Harvlim     <- 356
 scen1_enable_slot <- FALSE
-scen1_slot_type   <- "traditional"
+scen1_slot_type   <- "harvest"
 scen1_slot_upper  <- NA_real_
 scen1_DisMort     <- 0.10   # conservative; Payer et al. 1989 (5-10%), Reeves and Bruesewitz 2007 (0-12%)
 
@@ -93,17 +93,17 @@ scen1_DisMort     <- 0.10   # conservative; Payer et al. 1989 (5-10%), Reeves an
 scen2_name        <- "Min. length 457 mm (18 in.)"
 scen2_Harvlim     <- 457
 scen2_enable_slot <- FALSE
-scen2_slot_type   <- "traditional"
+scen2_slot_type   <- "harvest"
 scen2_slot_upper  <- NA_real_
 scen2_DisMort     <- 0.10   # conservative; Payer et al. 1989 (5-10%), Reeves and Bruesewitz 2007 (0-12%)
 
-# Scenario 3: Traditional slot 356–457 mm (14–18 in.)
+# Scenario 3: Harvest slot 356–457 mm (14–18 in.)
 # Fish within the slot (14–18") must be released; those below 14" and above
 # 18" are harvestable, allowing slot fish to grow through to the upper class.
-scen3_name        <- "Traditional slot 356-457 mm"
+scen3_name        <- "Harvest slot 356-457 mm"
 scen3_Harvlim     <- 356
 scen3_enable_slot <- TRUE
-scen3_slot_type   <- "traditional"
+scen3_slot_type   <- "harvest"
 scen3_slot_upper  <- 457
 scen3_DisMort     <- 0.10   # conservative; Payer et al. 1989 (5-10%), Reeves and Bruesewitz 2007 (0-12%)
 

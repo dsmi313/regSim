@@ -65,11 +65,11 @@ test_that("make_vulnerability_curves fecundity and weight are non-negative", {
   expect_true(all(vc$Wt_bins  >= 0))
 })
 
-test_that("traditional slot limits harvest to within-slot fish only", {
+test_that("harvest slot limits harvest to within-slot fish only", {
   g <- make_wc_grid(Linf = 600)
   vc <- make_vulnerability_curves(
     g$bin_midpoints, 200, 300, 200, 500, 8.16e-6, 3.10, 0.22, 1.18,
-    enable_slot = TRUE, slot_type = "traditional", slot_upper = 450
+    enable_slot = TRUE, slot_type = "harvest", slot_upper = 450
   )
   # Fish well below min (100 mm) and well above max (550 mm) should have ~0 harvest vuln
   small_idx <- which(g$bin_midpoints < 150)
@@ -239,4 +239,13 @@ test_that("annual YPR time series averages to the reported YPR", {
   out <- do.call(run_population_simulation, c(inp, collect_full_output = TRUE))
   idx <- (inp$Ymax - 49L):inp$Ymax
   expect_equal(colMeans(out$all_YPR[idx, , drop = FALSE]), out$sim_df$YPR)
+})
+
+test_that("'traditional' is still accepted as the old name for a harvest slot", {
+  g    <- make_wc_grid()
+  args <- list(g$bin_midpoints, 204, 254, 180, 305, 2.40991e-6, 3.38, 0.374, 1.27,
+               enable_slot = TRUE, slot_upper = 356)
+  new <- do.call(make_vulnerability_curves, c(args, slot_type = "harvest"))
+  old <- do.call(make_vulnerability_curves, c(args, slot_type = "traditional"))
+  expect_equal(new$Vulharv_bins, old$Vulharv_bins)
 })

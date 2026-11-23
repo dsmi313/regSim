@@ -108,12 +108,12 @@ ui <- fluidPage(
       conditionalPanel(
         condition = "input.enable_slot == true",
         radioButtons("slot_type", "Slot Type:",
-                     choices = c("Traditional (keep fish WITHIN slot)" = "traditional",
+                     choices = c("Harvest (keep fish WITHIN slot)" = "harvest",
                                  "Protective (protect fish WITHIN slot)" = "protective"),
-                     selected = "traditional"),
+                     selected = "harvest"),
         numericInput("slot_upper", "Maximum Size (mm):",
                      value = 406, min = 250, max = 500),
-        helpText(tags$small(tags$em("Traditional: harvest ONLY between min-max. Protective: PROTECT between min-max")))
+        helpText(tags$small(tags$em("Harvest: harvest ONLY between min-max. Protective: PROTECT between min-max")))
       ),
       
       conditionalPanel(
@@ -298,7 +298,7 @@ ui <- fluidPage(
                    tags$li(strong("Weight-length relationships:"), "Species-specific allometric relationships (W = a × L^b) from FishBase medians"),
                    tags$li(strong("Density-dependent recruitment (DDR):"), "Optional Beverton-Holt stock-recruitment with configurable steepness"),
                    tags$li(strong("Size-based selectivity:"), "Logistic vulnerability curves for capture and harvest"),
-                   tags$li(strong("Regulations:"), "Traditional slot limits, protective (reverse) slots, and maximum length limits"),
+                   tags$li(strong("Regulations:"), "Harvest slot limits, protective slots, and maximum length limits"),
                    tags$li(strong("Mortality:"), "Natural mortality (M) and configurable discard mortality. Default M: black bass (largemouth = 0.46, smallmouth = 0.43) use fixed literature-median values (Beamesderfer & North 1995); crappie use M = K; other species use M = 1.5K (Jensen 1996). M is always a directly editable input."),
                    tags$li(strong("Stochastic recruitment:"), "Lognormal variability with species-specific CV"),
                    tags$li(strong("Fecundity:"), "Weight-based egg production scaled by logistic maturity ogive"),
@@ -553,8 +553,8 @@ server <- function(input, output, session) {
     cat("Model Parameters:\n")
     cat(sprintf("  Exploitation Rate (U): %.2f%%\n", input$exploitation * 100))
     if(input$enable_slot) {
-      slot_label <- ifelse(input$slot_type == "traditional",
-                           "Traditional Slot (keep",
+      slot_label <- ifelse(input$slot_type == "harvest",
+                           "Harvest Slot (keep",
                            "Protective Slot (protect")
       cat(sprintf("  %s %.1f - %.1f\"): %.0f - %.0f mm\n",
                   slot_label,
@@ -985,7 +985,7 @@ server <- function(input, output, session) {
       for(i in 1:nrow(scenarios)) {
         cat(sprintf("%d. %s\n", i, scenarios$Scenario[i]))
         if(scenarios$Slot_enabled[i]) {
-          slot_label <- ifelse(scenarios$Slot_type[i] == "traditional",
+          slot_label <- ifelse(scenarios$Slot_type[i] == "harvest",
                                "keep", "protect")
           cat(sprintf("   U=%.2f%%, %s %.1f-%.1f\", L∞=%.0f, K=%.3f\n",
                       scenarios$Exploitation[i] * 100,
@@ -1059,7 +1059,7 @@ server <- function(input, output, session) {
     req(nrow(scenarios) > 0)
     scenarios %>%
       mutate(Regulation = ifelse(Slot_enabled,
-                                 ifelse(Slot_type == "traditional",
+                                 ifelse(Slot_type == "harvest",
                                         paste0("keep ", MLL_inches, "-", Slot_upper_inches, "\""),
                                         paste0("protect ", MLL_inches, "-", Slot_upper_inches, "\"")),
                                  paste0(MLL_inches, "\" min"))) %>%
