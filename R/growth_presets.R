@@ -41,9 +41,11 @@ get_growth_preset <- function(species, preset) {
     ),
     # Non-crappie species: M = 1.5 * K (Jensen 1996, CJFAS 53:820-822)
     walleye = list(
-      slow     = list(linf = 748, vbk = 0.24, t0 = -0.66, nat_mort = 0.24 * 1.5),
-      moderate = list(linf = 683, vbk = 0.32, t0 = -0.52, nat_mort = 0.32 * 1.5),
-      fast     = list(linf = 615, vbk = 0.43, t0 = -0.20, nat_mort = 0.43 * 1.5)
+      # K = 25th/50th/75th percentiles of FishBase records (42 not flagged
+      # questionable, pulled Nov 23, 2026); Linf = 75th/50th/25th (inverse pairing)
+      slow     = list(linf = 750, vbk = 0.25, t0 = -0.66, nat_mort = 0.25 * 1.5),
+      moderate = list(linf = 683, vbk = 0.31, t0 = -0.52, nat_mort = 0.31 * 1.5),
+      fast     = list(linf = 622, vbk = 0.39, t0 = -0.20, nat_mort = 0.39 * 1.5)
     ),
     # Black bass (lmb, smb): fixed species-median M from Beamesderfer and North
     # (1995, NAJFM 15:688-704, Table 2), NOT the Jensen M = 1.5 K default used

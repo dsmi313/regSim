@@ -1,5 +1,12 @@
 # regSim 0.2.0
 
+* Walleye and Largemouth Bass growth presets updated to the current FishBase
+  quartiles (records not flagged questionable, pulled Nov 23, 2026): K at the
+  25th/50th/75th percentiles for slow/moderate/fast, with Linf inversely
+  paired. Walleye: K 0.25/0.31/0.39, Linf 750/683/622 mm (was 0.24/0.32/0.43,
+  748/683/615). Largemouth Bass: K 0.16/0.21/0.28, Linf 640/592/554 mm (was
+  0.17/0.22/0.28, 638/584/540). Walleye M stays 1.5K; Largemouth Bass M stays
+  0.46.
 * Growth variability is now a coefficient of variation in length at age
   (default 0.15), replacing the CV on the annual growth increment. At each
   age, length has SD = CV x mean length at age, so absolute spread grows with

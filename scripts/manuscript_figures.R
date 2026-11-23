@@ -135,10 +135,11 @@ make_line_figure <- function(df, species_label, scen_levels) {
 }
 
 make_violin_figure <- function(df, species_label, scen_levels, target_U,
-                               ypr_from_zero = FALSE, dot_size = 0.3) {
+                               ypr_from_zero = FALSE, dot_size = 0.3,
+                               growth = "moderate") {
   
   violin_df <- df |>
-    dplyr::filter(growth_preset == "moderate", U %in% target_U) |>
+    dplyr::filter(growth_preset == growth, U %in% target_U) |>
     dplyr::mutate(
       scenario = factor(scenario, levels = scen_levels),
       U_label  = factor(paste0("U = ", scales::percent(U)),
@@ -187,7 +188,8 @@ make_violin_figure <- function(df, species_label, scen_levels, target_U,
   }
   
   p_spr  <- make_vp("SPR",  "SPR",            hline = 0.30, pct = TRUE, from_zero = TRUE) +
-    theme(axis.text.y = element_text())
+    theme(axis.text.y = element_text(),
+          plot.margin = margin(5.5, 5.5, 5.5, 20))
   p_ypr  <- make_vp("YPR",  "YPR (kg)", from_zero = ypr_from_zero)
   p_prop <- make_vp("Prop", "Prop. memorable", pct = TRUE)
   
@@ -220,7 +222,11 @@ violin_walleye <- make_violin_figure(walleye, "Walleye",
 violin_lmb <- make_violin_figure(lmb, "Largemouth Bass",
                                  c("Min. 305 mm, low D", "Min. 305 mm, high D",
                                    "Slot 305-508 mm, low D", "Slot 305-508 mm, high D"),
-                                 target_U = c(0.10, 0.25, 0.50))
+                                 target_U = c(0.10, 0.25, 0.50),
+                                 # Fast growth: Allen and Pine (2000) used the 75th
+                                 # percentile because the growth literature is
+                                 # concentrated at northern latitudes
+                                 growth = "fast")
 
 ggsave("figures/line_crappie.png",   line_crappie,   width = 10, height = 7, dpi = 300)
 ggsave("figures/line_walleye.png",   line_walleye,   width = 9,  height = 7, dpi = 300)
