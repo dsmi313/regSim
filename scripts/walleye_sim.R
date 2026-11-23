@@ -77,6 +77,11 @@ U_df <- data.frame(
 Ro   <- 10000L
 nsim <- 10000L
 
+# Fixed seed so reruns reproduce the published numbers. future.seed = TRUE
+# below derives each worker's random stream from this, so results are the
+# same regardless of how many cores run them.
+set.seed(2026)
+
 # ── Regulation scenario parameters ───────────────────────────────────────────
 
 # Scenario 1: Minimum length 356 mm (14 in.)

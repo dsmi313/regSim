@@ -64,6 +64,11 @@ U_df <- data.frame(
 Ro   <- 10000L    # unfished recruitment (Ro is scaled; use relative comparisons)
 nsim <- 10000L   # Monte Carlo replicates per scenario × growth × U combination
 
+# Fixed seed so reruns reproduce the published numbers. future.seed = TRUE
+# below derives each worker's random stream from this, so results are the
+# same regardless of how many cores run them.
+set.seed(2026)
+
 # ── Regulation scenario parameters ───────────────────────────────────────────
 
 # Scenario 1: Minimum length 254 mm (10 in.)
