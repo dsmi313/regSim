@@ -19,6 +19,9 @@
 #'   \code{seq(0, 1, by = 0.1)}.
 #' @param enable_ddr,steepness,enable_depensation Recruitment options passed
 #'   through to \code{\link{run_population_simulation}}.
+#' @param stockvul_bins Stock-size curve passed to
+#'   \code{\link{run_population_simulation}} (denominator of proportion
+#'   memorable).
 #' @param progress_fn Optional \code{function(u_idx, n_points)} called once per
 #'   exploitation rate (e.g. to drive a Shiny progress bar).
 #'
@@ -37,7 +40,8 @@ run_yield_curve <- function(bin_midpoints, length_bins,
                             enable_ddr        = FALSE,
                             steepness         = 0.7,
                             enable_depensation = FALSE,
-                            progress_fn       = NULL) {
+                            progress_fn       = NULL,
+                            stockvul_bins      = NULL) {
   n_points <- length(U_values)
 
   curve_results <- data.frame(
@@ -59,7 +63,7 @@ run_yield_curve <- function(bin_midpoints, length_bins,
       bin_midpoints  = bin_midpoints,    length_bins   = length_bins,
       Growth_matrix  = Growth_matrix,    recruit_dist  = recruit_dist,
       Vulcap_bins    = Vulcap_bins,      Vulharv_bins  = Vulharv_bins,
-      trophyvul_bins = trophyvul_bins,   Fec_bins      = Fec_bins,
+      trophyvul_bins = trophyvul_bins,   stockvul_bins = stockvul_bins,   Fec_bins      = Fec_bins,
       Wt_bins        = Wt_bins,          S_bins        = S_bins,
       Amax = Amax, Ymax = Ymax,
       Ro = Ro, rec_cv = rec_cv,

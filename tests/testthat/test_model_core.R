@@ -1,6 +1,6 @@
 # Shared grid setup used across multiple tests
 make_wc_grid <- function(Linf = 353) {
-  max_length  <- ceiling(Linf * 1.2)
+  max_length  <- ceiling(Linf * 1.6)
   length_bins <- seq(0, max_length, by = 10)
   L_bins      <- length(length_bins) - 1
   bin_midpoints <- (length_bins[-1] + length_bins[-(L_bins + 1)]) / 2
@@ -9,37 +9,60 @@ make_wc_grid <- function(Linf = 353) {
 
 # ---- make_growth_matrix --------------------------------------------------------
 
+test_that("make_growth_matrix holds the CV of length at age and tracks the VB mean", {
+  g  <- make_wc_grid()
+  gm <- make_growth_matrix(353, 0.374, 0.197, g$bin_midpoints, g$length_bins, 0.20, Amax = 8L)
+  v  <- gm$recruit_dist
+  for (a in 1:8) {
+    mu <- sum(v * g$bin_midpoints)
+    cv <- sqrt(sum(v * (g$bin_midpoints - mu)^2)) / mu
+    expect_lt(abs(mu - gm$mean_length_at_age[a]), 2)
+    expect_lt(abs(cv - 0.20), 0.02)
+    if (a < 8) v <- drop(v %*% gm$Growth_matrix[, , a])
+  }
+  # Spread grows with age, so some age-8 fish are longer than Linf
+  expect_gt(sum(v[g$bin_midpoints > 353]), 0.2)
+})
+
+test_that("make_growth_matrix requires Amax", {
+  g <- make_wc_grid()
+  expect_error(make_growth_matrix(353, 0.374, 0.197, g$bin_midpoints, g$length_bins, 0.20),
+               "Amax")
+})
+
+
 test_that("make_growth_matrix row-sums are 1 (stochastic matrix)", {
   g <- make_wc_grid()
-  gm <- make_growth_matrix(353, 0.374, 0.197, g$bin_midpoints, g$length_bins, 0.20)
-  expect_true(all(abs(rowSums(gm$Growth_matrix) - 1) < 1e-9))
+  gm <- make_growth_matrix(353, 0.374, 0.197, g$bin_midpoints, g$length_bins, 0.20, Amax = 8L)
+  expect_true(all(abs(apply(gm$Growth_matrix, 3, rowSums) - 1) < 1e-9))
 })
 
 test_that("make_growth_matrix recruit_dist sums to 1", {
   g <- make_wc_grid()
-  gm <- make_growth_matrix(353, 0.374, 0.197, g$bin_midpoints, g$length_bins, 0.20)
+  gm <- make_growth_matrix(353, 0.374, 0.197, g$bin_midpoints, g$length_bins, 0.20, Amax = 8L)
   expect_equal(sum(gm$recruit_dist), 1, tolerance = 1e-9)
 })
 
 test_that("make_growth_matrix all values non-negative", {
   g <- make_wc_grid()
-  gm <- make_growth_matrix(353, 0.374, 0.197, g$bin_midpoints, g$length_bins, 0.20)
+  gm <- make_growth_matrix(353, 0.374, 0.197, g$bin_midpoints, g$length_bins, 0.20, Amax = 8L)
   expect_true(all(gm$Growth_matrix >= 0))
   expect_true(all(gm$recruit_dist  >= 0))
 })
 
 test_that("make_growth_matrix deterministic (CV = 0): each row has exactly one 1", {
   g <- make_wc_grid()
-  gm <- make_growth_matrix(353, 0.374, 0.197, g$bin_midpoints, g$length_bins, 0)
-  expect_true(all(rowSums(gm$Growth_matrix > 0) == 1))
+  gm <- make_growth_matrix(353, 0.374, 0.197, g$bin_midpoints, g$length_bins, 0, Amax = 8L)
+  expect_true(all(apply(gm$Growth_matrix > 0, 3, rowSums) == 1))
   expect_equal(sum(gm$recruit_dist > 0), 1)
 })
 
 test_that("make_growth_matrix returns correct structure", {
   g  <- make_wc_grid()
-  gm <- make_growth_matrix(353, 0.374, 0.197, g$bin_midpoints, g$length_bins, 0.20)
-  expect_named(gm, c("Growth_matrix", "recruit_dist"))
-  expect_equal(dim(gm$Growth_matrix), c(g$L_bins, g$L_bins))
+  gm <- make_growth_matrix(353, 0.374, 0.197, g$bin_midpoints, g$length_bins, 0.20, Amax = 8L)
+  expect_named(gm, c("Growth_matrix", "recruit_dist", "mean_length_at_age"))
+  expect_equal(dim(gm$Growth_matrix), c(g$L_bins, g$L_bins, 7L))
+  expect_length(gm$mean_length_at_age, 8L)
   expect_length(gm$recruit_dist, g$L_bins)
 })
 
@@ -65,11 +88,11 @@ test_that("make_vulnerability_curves fecundity and weight are non-negative", {
   expect_true(all(vc$Wt_bins  >= 0))
 })
 
-test_that("traditional slot limits harvest to within-slot fish only", {
+test_that("harvest slot limits harvest to within-slot fish only", {
   g <- make_wc_grid(Linf = 600)
   vc <- make_vulnerability_curves(
     g$bin_midpoints, 200, 300, 200, 500, 8.16e-6, 3.10, 0.22, 1.18,
-    enable_slot = TRUE, slot_type = "traditional", slot_upper = 450
+    enable_slot = TRUE, slot_type = "harvest", slot_upper = 450
   )
   # Fish well below min (100 mm) and well above max (550 mm) should have ~0 harvest vuln
   small_idx <- which(g$bin_midpoints < 150)
@@ -93,7 +116,7 @@ test_that("make_vulnerability_curves returns expected named list", {
   vc <- make_vulnerability_curves(
     g$bin_midpoints, 204, 254, 180, 305, 2.40991e-6, 3.38, 0.374, 1.27
   )
-  expected_names <- c("Vulcap_bins", "Vulharv_bins", "trophyvul_bins",
+  expected_names <- c("Vulcap_bins", "Vulharv_bins", "trophyvul_bins", "stockvul_bins",
                       "Fec_bins", "Wt_bins", "M_bins", "S_bins", "maturity_ogive_bins")
   expect_named(vc, expected_names, ignore.order = TRUE)
 })
@@ -103,7 +126,7 @@ test_that("make_vulnerability_curves returns expected named list", {
 # Helper: build white-crappie inputs for a fast test run
 make_wc_inputs <- function(nsim = 20) {
   g  <- make_wc_grid()
-  gm <- make_growth_matrix(353, 0.374, 0.197, g$bin_midpoints, g$length_bins, 0.20)
+  gm <- make_growth_matrix(353, 0.374, 0.197, g$bin_midpoints, g$length_bins, 0.20, Amax = 8L)
   vc <- make_vulnerability_curves(
     g$bin_midpoints, 204, 254, 180, 305, 2.40991e-6, 3.38, 0.374, 1.27
   )
@@ -217,4 +240,98 @@ test_that("fast path sim_df columns are finite and biologically plausible", {
   expect_true(all(df$YPR    >= 0, na.rm = TRUE))
   expect_true(all(df$Prop   >= 0 & df$Prop   <= 1, na.rm = TRUE))
   expect_true(all(df$Recruit > 0, na.rm = TRUE))
+})
+
+test_that("stochastic YPR is not inflated relative to deterministic YPR", {
+  # Averaging annual yield / recruits inflates YPR by about 1 + rec_cv^2.
+  # Total yield / total recruits should match the deterministic value.
+  inp_det <- make_wc_inputs(nsim = 1);  inp_det$rec_cv <- 0
+  inp_sto <- make_wc_inputs(nsim = 50); inp_sto$rec_cv <- 0.8
+  set.seed(21)
+  det <- do.call(run_population_simulation, c(inp_det, collect_full_output = FALSE))
+  for (full in c(FALSE, TRUE)) {
+    set.seed(21)
+    sto <- do.call(run_population_simulation, c(inp_sto, collect_full_output = full))
+    expect_lt(abs(mean(sto$sim_df$YPR) / det$sim_df$YPR - 1), 0.10)
+  }
+})
+
+test_that("annual YPR time series averages to the reported YPR", {
+  inp <- make_wc_inputs(nsim = 10)
+  set.seed(22)
+  out <- do.call(run_population_simulation, c(inp, collect_full_output = TRUE))
+  idx <- (inp$Ymax - 49L):inp$Ymax
+  expect_equal(colMeans(out$all_YPR[idx, , drop = FALSE]), out$sim_df$YPR)
+})
+
+test_that("'traditional' is still accepted as the old name for a harvest slot", {
+  g    <- make_wc_grid()
+  args <- list(g$bin_midpoints, 204, 254, 180, 305, 2.40991e-6, 3.38, 0.374, 1.27,
+               enable_slot = TRUE, slot_upper = 356)
+  new <- do.call(make_vulnerability_curves, c(args, slot_type = "harvest"))
+  old <- do.call(make_vulnerability_curves, c(args, slot_type = "traditional"))
+  expect_equal(new$Vulharv_bins, old$Vulharv_bins)
+})
+
+test_that("run_population_simulation still accepts a single growth matrix", {
+  set.seed(9)
+  inp <- make_wc_inputs(nsim = 3)
+  inp$Growth_matrix <- inp$Growth_matrix[, , 1]
+  out <- do.call(run_population_simulation, c(inp, collect_full_output = FALSE))
+  expect_true(all(is.finite(out$sim_df$SPR)))
+})
+
+test_that("run_population_simulation rejects an array with the wrong number of ages", {
+  inp <- make_wc_inputs(nsim = 2)
+  inp$Amax <- 9L
+  expect_error(do.call(run_population_simulation, c(inp, collect_full_output = FALSE)), "Amax")
+})
+
+test_that("harvest slot and minimum length treat a shared lower limit the same", {
+  # With the slot's upper edge far above the grid, a 254-mm harvest slot is a
+  # 254-mm minimum length: both edges use SD = 1% of the limit.
+  g   <- make_wc_grid()
+  arg <- list(g$bin_midpoints, 204, 254, 180, 305, 2.40991e-6, 3.38, 0.374, 1.27)
+  mll  <- do.call(make_vulnerability_curves, arg)
+  slot <- do.call(make_vulnerability_curves, c(arg, enable_slot = TRUE,
+                                              slot_type = "harvest", slot_upper = 1e5))
+  expect_equal(slot$Vulharv_bins, mll$Vulharv_bins, tolerance = 1e-6)
+})
+
+test_that("slot and maximum length edges have SD = 1% of the edge length", {
+  g  <- make_wc_grid()
+  vc <- make_vulnerability_curves(g$bin_midpoints, 204, 0, 180, 305, 2.40991e-6, 3.38,
+                                  0.374, 1.27, enable_max_limit = TRUE, max_harvest_size = 305)
+  i  <- which(g$bin_midpoints == 305)
+  if (length(i)) expect_equal(vc$Vulharv_bins[i] / vc$Vulcap_bins[i], 0.5, tolerance = 1e-9)
+  # 10 mm past a 305-mm maximum is 10/3.05 SDs: about 4% still harvestable
+  j  <- which(g$bin_midpoints == 315)
+  expect_equal(vc$Vulharv_bins[j] / vc$Vulcap_bins[j], 1 / (1 + exp(10 / 3.05)), tolerance = 1e-9)
+})
+
+test_that("proportion memorable is relative to stock-size fish", {
+  g   <- make_wc_grid()
+  arg <- list(g$bin_midpoints, 204, 254, 180, 305, 2.40991e-6, 3.38, 0.374, 1.27)
+  vc_all   <- do.call(make_vulnerability_curves, arg)
+  vc_stock <- do.call(make_vulnerability_curves, c(arg, stock_size = 127))
+  expect_true(all(vc_all$stockvul_bins == 1))
+  inp <- make_wc_inputs(nsim = 1); inp$rec_cv <- 0
+  all_fish <- do.call(run_population_simulation, c(inp, collect_full_output = TRUE))
+  inp$stockvul_bins <- vc_stock$stockvul_bins
+  stock    <- do.call(run_population_simulation, c(inp, collect_full_output = TRUE))
+  N <- stock$all_Abundance[, 1]
+  expect_equal(stock$sim_df$Prop,
+               sum(inp$trophyvul_bins * N) / sum(vc_stock$stockvul_bins * N), tolerance = 1e-6)
+  expect_gt(stock$sim_df$Prop, all_fish$sim_df$Prop)
+})
+
+test_that("recruitment noise under density-dependent recruitment is mean-corrected", {
+  inp <- make_wc_inputs(nsim = 40); inp$U <- 0
+  det <- inp; det$rec_cv <- 0; det$nsim <- 1
+  set.seed(31)
+  d <- do.call(run_population_simulation, c(det, enable_ddr = TRUE, steepness = 0.95, collect_full_output = FALSE))
+  set.seed(31)
+  s <- do.call(run_population_simulation, c(inp, enable_ddr = TRUE, steepness = 0.95, collect_full_output = FALSE))
+  # Uncorrected noise would inflate mean recruitment by exp(sigma^2 / 2) = 1.28 at CV 0.8
+  expect_lt(abs(mean(s$sim_df$Recruit) / d$sim_df$Recruit - 1), 0.10)
 })

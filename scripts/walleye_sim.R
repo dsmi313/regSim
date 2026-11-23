@@ -47,7 +47,7 @@ handlers(handler_progress(
 
 # ── Species preset ────────────────────────────────────────────────────────────
 # wl_a = 6.63e-6, wl_b = 3.10  (W in kg, L in mm)
-# mat_size = 356 mm (~14 in.), memorable_size = 635 mm (~25 in.)
+# mat_size = 356 mm (~14 in.), memorable_size = 630 mm (Gabelhouse 1984a, 63 cm)
 # capsize = 330 mm (50% capture vulnerability)
 # rec_cv = 1.1, amax = 15, ymax = 135, fec_exp = 1.18
 sp <- get_species_preset("walleye")
@@ -77,6 +77,11 @@ U_df <- data.frame(
 Ro   <- 10000L
 nsim <- 10000L
 
+# Fixed seed so reruns reproduce the published numbers. future.seed = TRUE
+# below derives each worker's random stream from this, so results are the
+# same regardless of how many cores run them.
+set.seed(2026)
+
 # ── Regulation scenario parameters ───────────────────────────────────────────
 
 # Scenario 1: Minimum length 356 mm (14 in.)
@@ -84,7 +89,7 @@ nsim <- 10000L
 scen1_name        <- "Min. length 356 mm (14 in.)"
 scen1_Harvlim     <- 356
 scen1_enable_slot <- FALSE
-scen1_slot_type   <- "traditional"
+scen1_slot_type   <- "harvest"
 scen1_slot_upper  <- NA_real_
 scen1_DisMort     <- 0.10   # conservative; Payer et al. 1989 (5-10%), Reeves and Bruesewitz 2007 (0-12%)
 
@@ -93,17 +98,17 @@ scen1_DisMort     <- 0.10   # conservative; Payer et al. 1989 (5-10%), Reeves an
 scen2_name        <- "Min. length 457 mm (18 in.)"
 scen2_Harvlim     <- 457
 scen2_enable_slot <- FALSE
-scen2_slot_type   <- "traditional"
+scen2_slot_type   <- "harvest"
 scen2_slot_upper  <- NA_real_
 scen2_DisMort     <- 0.10   # conservative; Payer et al. 1989 (5-10%), Reeves and Bruesewitz 2007 (0-12%)
 
-# Scenario 3: Traditional slot 356–457 mm (14–18 in.)
+# Scenario 3: Harvest slot 356–457 mm (14–18 in.)
 # Fish within the slot (14–18") must be released; those below 14" and above
 # 18" are harvestable, allowing slot fish to grow through to the upper class.
-scen3_name        <- "Traditional slot 356-457 mm"
+scen3_name        <- "Harvest slot 356-457 mm"
 scen3_Harvlim     <- 356
 scen3_enable_slot <- TRUE
-scen3_slot_type   <- "traditional"
+scen3_slot_type   <- "harvest"
 scen3_slot_upper  <- 457
 scen3_DisMort     <- 0.10   # conservative; Payer et al. 1989 (5-10%), Reeves and Bruesewitz 2007 (0-12%)
 
@@ -120,20 +125,30 @@ scen_params <- data.frame(
 
 growth_labels <- c("slow", "moderate", "fast")
 
-# Full crossing: 3 scenarios × 3 growth × 3 U = 27 combinations
+# Growth CV = coefficient of variation in length at age. 0.15 is the default
+# and is used for the manuscript figures; 0.10 and 0.20 are the sensitivity
+# runs reported alongside it in Supplementary Table S1.
+cv_levels <- c(0.10, 0.15, 0.20)
+
+# Full crossing: 3 scenarios × 3 growth × 3 U × 3 growth CV = 81 combinations
 combos <- merge(
-  merge(scen_params,
-        data.frame(growth_preset = growth_labels, stringsAsFactors = FALSE),
-        by = character()),
-  U_df,
+  merge(
+    merge(scen_params,
+          data.frame(growth_preset = growth_labels, stringsAsFactors = FALSE),
+          by = character()),
+    U_df,
+    by = character()
+  ),
+  data.frame(growth_cv = cv_levels),
   by = character()
 )
-combos <- combos[order(combos$scenario, combos$growth_preset, combos$U), ]
+combos <- combos[order(combos$scenario, combos$growth_preset, combos$U, combos$growth_cv), ]
 rownames(combos) <- NULL
 
-n_combos <- nrow(combos)  # 27
+n_combos <- nrow(combos)  # 81
 
-# ── Pre-compute cached inputs (bins and gmat depend only on growth_preset;
+# ── Pre-compute cached inputs (bins depend on growth_preset, gmat on
+#    growth_preset x growth CV;
 #    vc depends on scenario × growth_preset but NOT on U) ─────────────────────
 growth_presets_list <- list(
   slow     = growth_slow,
@@ -143,20 +158,22 @@ growth_presets_list <- list(
 
 bins_cache <- vector("list", length(growth_presets_list))
 names(bins_cache) <- names(growth_presets_list)
-gmat_cache <- vector("list", length(growth_presets_list))
-names(gmat_cache) <- names(growth_presets_list)
+gmat_cache <- list()   # keyed by "<growth preset> <growth CV>"
 
 for (gp in names(growth_presets_list)) {
   g <- growth_presets_list[[gp]]
   bins_cache[[gp]] <- make_length_bins(Linf = g$linf)
-  gmat_cache[[gp]] <- make_growth_matrix(
-    Linf          = g$linf,
-    vbk           = g$vbk,
-    t0            = g$t0,
-    bin_midpoints = bins_cache[[gp]]$bin_midpoints,
-    length_bins   = bins_cache[[gp]]$length_bins,
-    growth_cv     = 0.20
-  )
+  for (cv in cv_levels) {
+    gmat_cache[[paste(gp, cv)]] <- make_growth_matrix(
+      Linf          = g$linf,
+      vbk           = g$vbk,
+      t0            = g$t0,
+      bin_midpoints = bins_cache[[gp]]$bin_midpoints,
+      length_bins   = bins_cache[[gp]]$length_bins,
+      growth_cv     = cv,
+      Amax          = sp$amax
+    )
+  }
 }
 
 vc_cache <- list()
@@ -170,6 +187,7 @@ for (i in seq_len(nrow(combos))) {
       Harvlim        = combo$Harvlim,
       mat_size       = sp$mat_size,
       memorable_size = sp$memorable_size,
+      stock_size       = sp$stock_size,
       wl_a           = sp$wl_a,
       wl_b           = sp$wl_b,
       nat_mort       = growth_presets_list[[combo$growth_preset]]$nat_mort,
@@ -182,7 +200,7 @@ for (i in seq_len(nrow(combos))) {
 }
 
 cat("Walleye simulation\n")
-cat("  Combinations :", n_combos, "(3 scenarios x 3 growth x 3 U)\n")
+cat("  Combinations :", n_combos, "(3 scenarios x 3 growth x 3 U x 3 growth CV)\n")
 cat("  Replicates   :", nsim, "per combination\n\n")
 
 # ── Main simulation loop ──────────────────────────────────────────────────────
@@ -197,7 +215,7 @@ results_list <- with_progress({
     key   <- paste(combo$scenario, combo$growth_preset, sep = "\n")
 
     bins <- bins_cache[[combo$growth_preset]]
-    gmat <- gmat_cache[[combo$growth_preset]]
+    gmat <- gmat_cache[[paste(combo$growth_preset, combo$growth_cv)]]
     vc   <- vc_cache[[key]]
 
     sim_out <- run_population_simulation(
@@ -208,6 +226,7 @@ results_list <- with_progress({
       Vulcap_bins         = vc$Vulcap_bins,
       Vulharv_bins        = vc$Vulharv_bins,
       trophyvul_bins      = vc$trophyvul_bins,
+      stockvul_bins       = vc$stockvul_bins,
       Fec_bins            = vc$Fec_bins,
       Wt_bins             = vc$Wt_bins,
       S_bins              = vc$S_bins,
@@ -225,6 +244,7 @@ results_list <- with_progress({
     d$species       <- "walleye"
     d$scenario      <- combo$scenario
     d$growth_preset <- combo$growth_preset
+    d$growth_cv     <- combo$growth_cv
     d$U_label       <- combo$U_label
     d$U             <- combo$U
     d$U_category    <- combo$U_category

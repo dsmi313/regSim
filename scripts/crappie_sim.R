@@ -35,7 +35,7 @@ handlers(handler_progress(
 
 # ── Species preset ────────────────────────────────────────────────────────────
 # wl_a = 2.41e-6, wl_b = 3.38  (W in kg, L in mm)
-# mat_size = 180 mm, memorable_size = 305 mm (12 in.)
+# mat_size = 180 mm, memorable_size = 300 mm (Gabelhouse 1984a, 30 cm)
 # capsize = 204 mm (50% capture vulnerability)
 # rec_cv = 0.8, amax = 8, ymax = 128, fec_exp = 1.27
 sp <- get_species_preset("white_crappie")
@@ -64,6 +64,11 @@ U_df <- data.frame(
 Ro   <- 10000L    # unfished recruitment (Ro is scaled; use relative comparisons)
 nsim <- 10000L   # Monte Carlo replicates per scenario × growth × U combination
 
+# Fixed seed so reruns reproduce the published numbers. future.seed = TRUE
+# below derives each worker's random stream from this, so results are the
+# same regardless of how many cores run them.
+set.seed(2026)
+
 # ── Regulation scenario parameters ───────────────────────────────────────────
 
 # Scenario 1: Minimum length 254 mm (10 in.)
@@ -71,7 +76,7 @@ nsim <- 10000L   # Monte Carlo replicates per scenario × growth × U combinatio
 scen1_name        <- "Min. length 254 mm (10 in.)"
 scen1_Harvlim     <- 254
 scen1_enable_slot <- FALSE
-scen1_slot_type   <- "traditional"   # slot args are ignored when enable_slot=FALSE
+scen1_slot_type   <- "harvest"   # slot args are ignored when enable_slot=FALSE
 scen1_slot_upper  <- NA_real_
 scen1_DisMort     <- 0.09            # 9% release mortality (Smith et al. 2025)
 
@@ -83,7 +88,7 @@ scen1_DisMort     <- 0.09            # 9% release mortality (Smith et al. 2025)
 scen2_name            <- "Max. length 305 mm (12 in.)"
 scen2_Harvlim         <- 0
 scen2_enable_slot     <- FALSE
-scen2_slot_type       <- "traditional"
+scen2_slot_type       <- "harvest"
 scen2_slot_upper      <- NA_real_
 scen2_enable_max      <- TRUE
 scen2_max_size        <- 305
@@ -96,11 +101,11 @@ scen2_DisMort         <- 0.09
 scen3_name        <- "No regulation"
 scen3_Harvlim     <- 0
 scen3_enable_slot <- FALSE
-scen3_slot_type   <- "traditional"
+scen3_slot_type   <- "harvest"
 scen3_slot_upper  <- NA_real_
 scen3_DisMort     <- 0.09
 
-# Scenario 4: Traditional slot 254-356 mm (10-14 in.)
+# Scenario 4: Harvest slot 254-356 mm (10-14 in.)
 # Fish within the 10-14" slot are harvestable; fish below 10" or above 14"
 # must be released. Under live-sonar exploitation, the slot concentrates
 # harvest pressure on quality-class fish while protecting the smallest and
@@ -108,7 +113,7 @@ scen3_DisMort     <- 0.09
 scen4_name        <- "Slot 254-356 mm (10-14 in.)"
 scen4_Harvlim     <- 254
 scen4_enable_slot <- TRUE
-scen4_slot_type   <- "traditional"     # fish WITHIN [Harvlim, slot_upper] are harvestable
+scen4_slot_type   <- "harvest"     # fish WITHIN [Harvlim, slot_upper] are harvestable
 scen4_slot_upper  <- 356              # 14 in. = 355.6 mm → 356 mm
 scen4_DisMort     <- 0.09
 
@@ -127,20 +132,30 @@ scen_params <- data.frame(
 
 growth_labels <- c("slow", "moderate", "fast")
 
-# Full crossing: 4 scenarios × 3 growth × 3 U = 36 combinations
+# Growth CV = coefficient of variation in length at age. 0.15 is the default
+# and is used for the manuscript figures; 0.10 and 0.20 are the sensitivity
+# runs reported alongside it in Supplementary Table S1.
+cv_levels <- c(0.10, 0.15, 0.20)
+
+# Full crossing: 4 scenarios × 3 growth × 3 U × 3 growth CV = 108 combinations
 combos <- merge(
-  merge(scen_params,
-        data.frame(growth_preset = growth_labels, stringsAsFactors = FALSE),
-        by = character()),
-  U_df,
+  merge(
+    merge(scen_params,
+          data.frame(growth_preset = growth_labels, stringsAsFactors = FALSE),
+          by = character()),
+    U_df,
+    by = character()
+  ),
+  data.frame(growth_cv = cv_levels),
   by = character()
 )
-combos <- combos[order(combos$scenario, combos$growth_preset, combos$U), ]
+combos <- combos[order(combos$scenario, combos$growth_preset, combos$U, combos$growth_cv), ]
 rownames(combos) <- NULL
 
-n_combos <- nrow(combos)  # 36
+n_combos <- nrow(combos)  # 108
 
-# ── Pre-compute cached inputs (bins and gmat depend only on growth_preset;
+# ── Pre-compute cached inputs (bins depend on growth_preset, gmat on
+#    growth_preset x growth CV;
 #    vc depends on scenario × growth_preset but NOT on U) ─────────────────────
 growth_presets_list <- list(
   slow     = growth_slow,
@@ -150,20 +165,22 @@ growth_presets_list <- list(
 
 bins_cache <- vector("list", length(growth_presets_list))
 names(bins_cache) <- names(growth_presets_list)
-gmat_cache <- vector("list", length(growth_presets_list))
-names(gmat_cache) <- names(growth_presets_list)
+gmat_cache <- list()   # keyed by "<growth preset> <growth CV>"
 
 for (gp in names(growth_presets_list)) {
   g <- growth_presets_list[[gp]]
   bins_cache[[gp]] <- make_length_bins(Linf = g$linf)
-  gmat_cache[[gp]] <- make_growth_matrix(
-    Linf          = g$linf,
-    vbk           = g$vbk,
-    t0            = g$t0,
-    bin_midpoints = bins_cache[[gp]]$bin_midpoints,
-    length_bins   = bins_cache[[gp]]$length_bins,
-    growth_cv     = 0.20
-  )
+  for (cv in cv_levels) {
+    gmat_cache[[paste(gp, cv)]] <- make_growth_matrix(
+      Linf          = g$linf,
+      vbk           = g$vbk,
+      t0            = g$t0,
+      bin_midpoints = bins_cache[[gp]]$bin_midpoints,
+      length_bins   = bins_cache[[gp]]$length_bins,
+      growth_cv     = cv,
+      Amax          = sp$amax
+    )
+  }
 }
 
 vc_cache <- list()
@@ -177,6 +194,7 @@ for (i in seq_len(nrow(combos))) {
       Harvlim          = combo$Harvlim,
       mat_size         = sp$mat_size,
       memorable_size   = sp$memorable_size,
+      stock_size       = sp$stock_size,
       wl_a             = sp$wl_a,
       wl_b             = sp$wl_b,
       nat_mort         = growth_presets_list[[combo$growth_preset]]$nat_mort,
@@ -191,7 +209,7 @@ for (i in seq_len(nrow(combos))) {
 }
 
 cat("White crappie simulation\n")
-cat("  Combinations :", n_combos, "(4 scenarios x 3 growth x 3 U)\n")
+cat("  Combinations :", n_combos, "(4 scenarios x 3 growth x 3 U x 3 growth CV)\n")
 cat("  Replicates   :", nsim, "per combination\n\n")
 
 # ── Main simulation loop ──────────────────────────────────────────────────────
@@ -209,7 +227,7 @@ results_list <- with_progress({
     key   <- paste(combo$scenario, combo$growth_preset, sep = "\n")
 
     bins <- bins_cache[[combo$growth_preset]]
-    gmat <- gmat_cache[[combo$growth_preset]]
+    gmat <- gmat_cache[[paste(combo$growth_preset, combo$growth_cv)]]
     vc   <- vc_cache[[key]]
 
     sim_out <- run_population_simulation(
@@ -220,6 +238,7 @@ results_list <- with_progress({
       Vulcap_bins         = vc$Vulcap_bins,
       Vulharv_bins        = vc$Vulharv_bins,
       trophyvul_bins      = vc$trophyvul_bins,
+      stockvul_bins       = vc$stockvul_bins,
       Fec_bins            = vc$Fec_bins,
       Wt_bins             = vc$Wt_bins,
       S_bins              = vc$S_bins,
@@ -237,6 +256,7 @@ results_list <- with_progress({
     d$species       <- "white_crappie"
     d$scenario      <- combo$scenario
     d$growth_preset <- combo$growth_preset
+    d$growth_cv     <- combo$growth_cv
     d$U_label       <- combo$U_label
     d$U             <- combo$U
     d$U_category    <- combo$U_category

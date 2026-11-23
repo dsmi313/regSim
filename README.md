@@ -17,7 +17,7 @@ interface for exploring those tradeoffs without writing code.
 - **Minimum-length limit** — set the size at which fish become harvestable
 - **Protective slot limit** — protect fish within a size range (e.g. 12–16 in),
   harvest allowed above and below
-- **Traditional slot limit** — harvest restricted to fish *within* the slot,
+- **Harvest slot limit** — harvest restricted to fish *within* the slot,
   protecting large broodstock
 - **Maximum-length limit** — cap harvest size to protect large, highly fecund
   fish
@@ -34,8 +34,9 @@ interface for exploring those tradeoffs without writing code.
 - **Species presets** (white crappie, black crappie, walleye, largemouth bass,
   smallmouth bass, channel catfish, blue catfish) with slow / moderate / fast
   growth scenarios
-- **Growth CV** — coefficient of variation in length-at-age; higher values
-  produce more realistic, less modal length-frequency distributions
+- **Growth CV** — coefficient of variation in length at age (default 0.15);
+  spread grows with age and some fish grow past L∞. Higher values produce
+  less modal length-frequency distributions
 
 **Outputs and metrics**
 

@@ -42,7 +42,9 @@ ui <- fluidPage(
       numericInput("mat_size", "Maturity Size (mm):", value = 200, min = 50, max = 500, step = 10),
       helpText(tags$small(tags$em("Fish at this size are sexually mature"))),
       
-      numericInput("memorable_size", "Memorable Size (mm):", value = 305, min = 100, max = 700, step = 5),
+      numericInput("memorable_size", "Memorable Size (mm):", value = 300, min = 100, max = 700, step = 5),
+      numericInput("stock_size", "Stock Size (mm):", value = 130, min = 50, max = 400, step = 1),
+      helpText(tags$small(tags$em("Proportion memorable = memorable-size fish / stock-size fish (Gabelhouse 1984 length categories)."))),
       helpText(tags$small(tags$em("Trophy/quality fish threshold"))),
       
       numericInput("nat_mort", "Natural Mortality (M):", value = 0.35, min = 0.05, max = 1.0, step = 0.01),
@@ -65,10 +67,10 @@ ui <- fluidPage(
         condition = "input.enable_ddr == true",
         sliderInput("steepness", "Steepness (h):",
                     min = 0.5, max = 0.95, value = 0.7, step = 0.01),
-        helpText(tags$small(tags$em("h = 0.5: strong compensation (recruitment proportional to SSB). h = 0.8+: weak compensation (recruitment nearly constant). Typical: 0.7-0.8."))),
+        helpText(tags$small(tags$em("Steepness h = recruitment at 20% of unfished spawning stock, as a fraction of unfished recruitment. Higher h = stronger compensation: at h = 0.95 recruitment stays nearly constant until the stock is small; at h = 0.5 recruitment falls off sooner as the stock declines (h = 0.2 would make recruitment proportional to spawning stock). Typical: 0.7-0.8."))),
         br(),
         checkboxInput("enable_depensation", "Enable Depensation (Allee Effects)", value = FALSE),
-        helpText(tags$small(tags$em("When enabled, recruitment crashes when SSB drops below 20% of unfished level. Simulates mate-finding failure, predator swamping failure, and other critical thresholds.")))
+        helpText(tags$small(tags$em("When enabled, recruitment is multiplied by (SSB / 0.2 SSB0)^2 when spawning stock falls below 20% of unfished, so it drops off steeply toward zero. Simulates mate-finding failure, predator swamping failure, and other critical thresholds.")))
       ),
       br(),
       
@@ -82,8 +84,8 @@ ui <- fluidPage(
       numericInput("vbk", "K:", value = 0.374, min = 0.01, max = 1.5, step = 0.001),
       numericInput("t0", "t0:", value = 0.197, min = -1.0, max = 2.0, step = 0.001),
       
-      numericInput("growth_cv", "Growth CV:", value = 0.20, min = 0.0, max = 1.0, step = 0.05),
-      helpText(tags$small(tags$em("Coefficient of variation for length-at-age (0 = deterministic, 0.20 = 20% variation). Higher values produce more realistic overlapping size modes in the length-frequency distribution; lower values produce clearly delineated year-class modes. Adjust to match the modal structure in your observed data."))),
+      numericInput("growth_cv", "Growth CV (length at age):", value = 0.15, min = 0.0, max = 1.0, step = 0.05),
+      helpText(tags$small(tags$em("Coefficient of variation in length at age (default 0.15; 0 = deterministic). The SD of length at each age is CV times the mean length at that age, so absolute spread grows with age and some fish grow past Linf. Higher values produce more overlapping size modes in the length-frequency distribution; lower values produce clearly delineated year-class modes. Adjust to match length at age in your observed data."))),
       
       # Exploitation Parameters
       h4("Exploitation Parameters"),
@@ -108,12 +110,12 @@ ui <- fluidPage(
       conditionalPanel(
         condition = "input.enable_slot == true",
         radioButtons("slot_type", "Slot Type:",
-                     choices = c("Traditional (keep fish WITHIN slot)" = "traditional",
+                     choices = c("Harvest (keep fish WITHIN slot)" = "harvest",
                                  "Protective (protect fish WITHIN slot)" = "protective"),
-                     selected = "traditional"),
+                     selected = "harvest"),
         numericInput("slot_upper", "Maximum Size (mm):",
                      value = 406, min = 250, max = 500),
-        helpText(tags$small(tags$em("Traditional: harvest ONLY between min-max. Protective: PROTECT between min-max")))
+        helpText(tags$small(tags$em("Harvest: harvest ONLY between min-max. Protective: PROTECT between min-max")))
       ),
       
       conditionalPanel(
@@ -208,7 +210,7 @@ ui <- fluidPage(
                  h4("Length-Frequency Distribution"),
                  helpText("Shows the distribution of fish lengths in the equilibrium population. Bars show mean abundance, shaded area shows 95% prediction interval (mean ± 1.96 × SD).",
                           tags$br(),
-                          tags$strong("Tip:"), " If year-class modes appear too sharply delineated compared to your data, increase the Growth CV parameter. A CV of 0.20 or higher typically produces the overlapping modes seen in most field length-frequency samples."),
+                          tags$strong("Tip:"), " If year-class modes appear too sharply delineated compared to your data, increase the Growth CV parameter."),
                  plotlyOutput("length_frequency", height = "400px"),
                  br(),
                  h4("Vulnerability by Length"),
@@ -294,11 +296,11 @@ ui <- fluidPage(
                  tags$ul(
                    tags$li(strong("Length bins:"), "10mm bins tracking fish by total length (TL)"),
                    tags$li(strong("Growth variability:"), "Individual variation in growth using mechanistic von Bertalanffy with coefficient of variation (CV)"),
-                   tags$li(strong("Growth transition matrix:"), "Probabilistic movement between length bins based on growth increment and CV"),
+                   tags$li(strong("Growth transition matrix:"), "Age-specific movement between length bins that holds the CV of length at age constant; fish keep their relative size, so some grow past Linf"),
                    tags$li(strong("Weight-length relationships:"), "Species-specific allometric relationships (W = a × L^b) from FishBase medians"),
                    tags$li(strong("Density-dependent recruitment (DDR):"), "Optional Beverton-Holt stock-recruitment with configurable steepness"),
                    tags$li(strong("Size-based selectivity:"), "Logistic vulnerability curves for capture and harvest"),
-                   tags$li(strong("Regulations:"), "Traditional slot limits, protective (reverse) slots, and maximum length limits"),
+                   tags$li(strong("Regulations:"), "Harvest slot limits, protective slots, and maximum length limits"),
                    tags$li(strong("Mortality:"), "Natural mortality (M) and configurable discard mortality. Default M: black bass (largemouth = 0.46, smallmouth = 0.43) use fixed literature-median values (Beamesderfer & North 1995); crappie use M = K; other species use M = 1.5K (Jensen 1996). M is always a directly editable input."),
                    tags$li(strong("Stochastic recruitment:"), "Lognormal variability with species-specific CV"),
                    tags$li(strong("Fecundity:"), "Weight-based egg production scaled by logistic maturity ogive"),
@@ -413,13 +415,13 @@ server <- function(input, output, session) {
       gm <- make_growth_matrix(
         Linf = growth_params$Linf, vbk = growth_params$vbk, t0 = growth_params$t0,
         bin_midpoints = bin_midpoints, length_bins = length_bins,
-        growth_cv = input$growth_cv
+        growth_cv = input$growth_cv, Amax = Amax
       )
 
       vc <- make_vulnerability_curves(
         bin_midpoints    = bin_midpoints,
         Capsize          = input$capsize,  Harvlim = input$harvlim,
-        mat_size         = input$mat_size, memorable_size = input$memorable_size,
+        mat_size         = input$mat_size, memorable_size = input$memorable_size, stock_size = input$stock_size,
         wl_a             = input$wl_a,     wl_b    = input$wl_b,
         nat_mort         = input$nat_mort, fec_exp = fec_exp,
         enable_slot      = isTRUE(input$enable_slot),
@@ -433,7 +435,7 @@ server <- function(input, output, session) {
         bin_midpoints  = bin_midpoints,    length_bins   = length_bins,
         Growth_matrix  = gm$Growth_matrix, recruit_dist  = gm$recruit_dist,
         Vulcap_bins    = vc$Vulcap_bins,   Vulharv_bins  = vc$Vulharv_bins,
-        trophyvul_bins = vc$trophyvul_bins, Fec_bins     = vc$Fec_bins,
+        trophyvul_bins = vc$trophyvul_bins, stockvul_bins = vc$stockvul_bins, Fec_bins     = vc$Fec_bins,
         Wt_bins        = vc$Wt_bins,       S_bins        = vc$S_bins,
         Amax = Amax, Ymax = Ymax,
         Ro = input$R0, rec_cv = input$rec_cv,
@@ -480,12 +482,12 @@ server <- function(input, output, session) {
             lb_k   <- bins_k$length_bins
             gm_k   <- make_growth_matrix(
               Linf = growth_samps$Linf[k], vbk = growth_samps$vbk[k], t0 = input$t0,
-              bin_midpoints = bm_k, length_bins = lb_k, growth_cv = input$growth_cv
+              bin_midpoints = bm_k, length_bins = lb_k, growth_cv = input$growth_cv, Amax = Amax
             )
             vc_k   <- make_vulnerability_curves(
               bin_midpoints    = bm_k,
               Capsize          = input$capsize,    Harvlim        = input$harvlim,
-              mat_size         = input$mat_size,   memorable_size = input$memorable_size,
+              mat_size         = input$mat_size,   memorable_size = input$memorable_size, stock_size = input$stock_size,
               wl_a             = input$wl_a,       wl_b           = input$wl_b,
               nat_mort         = input$nat_mort,   fec_exp        = fec_exp,
               enable_slot      = isTRUE(input$enable_slot),
@@ -504,7 +506,7 @@ server <- function(input, output, session) {
             bin_midpoints  = bm_k,                 length_bins    = lb_k,
             Growth_matrix  = gm_k$Growth_matrix,   recruit_dist   = gm_k$recruit_dist,
             Vulcap_bins    = vc_k$Vulcap_bins,     Vulharv_bins   = vc_k$Vulharv_bins,
-            trophyvul_bins = vc_k$trophyvul_bins,  Fec_bins       = vc_k$Fec_bins,
+            trophyvul_bins = vc_k$trophyvul_bins, stockvul_bins = vc_k$stockvul_bins,  Fec_bins       = vc_k$Fec_bins,
             Wt_bins        = vc_k$Wt_bins,         S_bins         = S_bins_k,
             Amax = Amax, Ymax = Ymax,
             Ro = input$R0, rec_cv = input$rec_cv,
@@ -553,8 +555,8 @@ server <- function(input, output, session) {
     cat("Model Parameters:\n")
     cat(sprintf("  Exploitation Rate (U): %.2f%%\n", input$exploitation * 100))
     if(input$enable_slot) {
-      slot_label <- ifelse(input$slot_type == "traditional",
-                           "Traditional Slot (keep",
+      slot_label <- ifelse(input$slot_type == "harvest",
+                           "Harvest Slot (keep",
                            "Protective Slot (protect")
       cat(sprintf("  %s %.1f - %.1f\"): %.0f - %.0f mm\n",
                   slot_label,
@@ -985,7 +987,7 @@ server <- function(input, output, session) {
       for(i in 1:nrow(scenarios)) {
         cat(sprintf("%d. %s\n", i, scenarios$Scenario[i]))
         if(scenarios$Slot_enabled[i]) {
-          slot_label <- ifelse(scenarios$Slot_type[i] == "traditional",
+          slot_label <- ifelse(scenarios$Slot_type[i] == "harvest",
                                "keep", "protect")
           cat(sprintf("   U=%.2f%%, %s %.1f-%.1f\", L∞=%.0f, K=%.3f\n",
                       scenarios$Exploitation[i] * 100,
@@ -1059,7 +1061,7 @@ server <- function(input, output, session) {
     req(nrow(scenarios) > 0)
     scenarios %>%
       mutate(Regulation = ifelse(Slot_enabled,
-                                 ifelse(Slot_type == "traditional",
+                                 ifelse(Slot_type == "harvest",
                                         paste0("keep ", MLL_inches, "-", Slot_upper_inches, "\""),
                                         paste0("protect ", MLL_inches, "-", Slot_upper_inches, "\"")),
                                  paste0(MLL_inches, "\" min"))) %>%
@@ -1093,13 +1095,13 @@ server <- function(input, output, session) {
       gm <- make_growth_matrix(
         Linf = growth_params$Linf, vbk = growth_params$vbk, t0 = growth_params$t0,
         bin_midpoints = bin_midpoints, length_bins = length_bins,
-        growth_cv = input$growth_cv
+        growth_cv = input$growth_cv, Amax = Amax
       )
 
       vc <- make_vulnerability_curves(
         bin_midpoints    = bin_midpoints,
         Capsize          = input$capsize,  Harvlim = input$harvlim,
-        mat_size         = input$mat_size, memorable_size = input$memorable_size,
+        mat_size         = input$mat_size, memorable_size = input$memorable_size, stock_size = input$stock_size,
         wl_a             = input$wl_a,     wl_b    = input$wl_b,
         nat_mort         = input$nat_mort, fec_exp = fec_exp,
         enable_slot      = isTRUE(input$enable_slot),
@@ -1115,7 +1117,7 @@ server <- function(input, output, session) {
         bin_midpoints  = bin_midpoints,    length_bins   = length_bins,
         Growth_matrix  = gm$Growth_matrix, recruit_dist  = gm$recruit_dist,
         Vulcap_bins    = vc$Vulcap_bins,   Vulharv_bins  = vc$Vulharv_bins,
-        trophyvul_bins = vc$trophyvul_bins, Fec_bins     = vc$Fec_bins,
+        trophyvul_bins = vc$trophyvul_bins, stockvul_bins = vc$stockvul_bins, Fec_bins     = vc$Fec_bins,
         Wt_bins        = vc$Wt_bins,       S_bins        = vc$S_bins,
         Amax = Amax, Ymax = Ymax_yield,
         Ro = input$R0, rec_cv = input$rec_cv,

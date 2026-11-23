@@ -1,7 +1,7 @@
 Package: regSim
 Type: Package
 Title: YPR and SPR interactive Shiny app for fisheries management
-Version: 0.1.0
+Version: 0.2.0
 Authors@R: person(given = "David R.", family = "Smith", role = c("aut", "cre"),
     email = "fish.dzs0017@gmail.com")
 Description: An interactive Shiny application for yield-per-recruit (YPR) and

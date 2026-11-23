@@ -27,7 +27,7 @@ U_sweep  <- seq(0, 0.80, by = 0.05)  # exploitation-rate grid for yield curves
 #   name        – scenario label
 #   Harvlim     – minimum harvest length (mm)
 #   enable_slot – TRUE for slot regulations
-#   slot_type   – "protective" (protect fish within slot) or "traditional"
+#   slot_type   – "protective" (protect fish within slot) or "harvest"
 #   slot_upper  – upper slot edge (mm); NA when enable_slot is FALSE
 #   DisMort     – discard / release mortality rate (0-1)
 scenarios <- data.frame(
@@ -56,7 +56,8 @@ scenarios <- data.frame(
     t0            = sp$t0,
     bin_midpoints = bins$bin_midpoints,
     length_bins   = bins$length_bins,
-    growth_cv     = 0.10
+    growth_cv     = 0.15,
+    Amax          = sp$amax
   )
 
   vc <- make_vulnerability_curves(
@@ -65,12 +66,13 @@ scenarios <- data.frame(
     Harvlim        = Harvlim,
     mat_size       = sp$mat_size,
     memorable_size = sp$memorable_size,
+      stock_size       = sp$stock_size,
     wl_a           = sp$wl_a,
     wl_b           = sp$wl_b,
     nat_mort       = sp$nat_mort,
     fec_exp        = sp$fec_exp,
     enable_slot    = enable_slot,
-    slot_type      = if (isTRUE(enable_slot)) slot_type else "traditional",
+    slot_type      = if (isTRUE(enable_slot)) slot_type else "harvest",
     slot_upper     = if (isTRUE(enable_slot)) slot_upper else NULL
   )
 
@@ -102,6 +104,7 @@ run_one_scenario <- function(name, Harvlim, enable_slot, slot_type, slot_upper, 
     Vulcap_bins         = inp$vc$Vulcap_bins,
     Vulharv_bins        = inp$vc$Vulharv_bins,
     trophyvul_bins      = inp$vc$trophyvul_bins,
+      stockvul_bins       = inp$vc$stockvul_bins,
     Fec_bins            = inp$vc$Fec_bins,
     Wt_bins             = inp$vc$Wt_bins,
     S_bins              = inp$vc$S_bins,
@@ -150,6 +153,7 @@ run_one_yield_curve <- function(name, Harvlim, enable_slot, slot_type, slot_uppe
     Vulcap_bins    = inp$vc$Vulcap_bins,
     Vulharv_bins   = inp$vc$Vulharv_bins,
     trophyvul_bins = inp$vc$trophyvul_bins,
+      stockvul_bins       = inp$vc$stockvul_bins,
     Fec_bins       = inp$vc$Fec_bins,
     Wt_bins        = inp$vc$Wt_bins,
     S_bins         = inp$vc$S_bins,
