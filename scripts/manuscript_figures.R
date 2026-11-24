@@ -208,7 +208,7 @@ line_crappie <- make_line_figure(crappie, "White Crappie",
                                  c("No regulation", "Min. 254 mm", "Max. 305 mm", "Slot 254-356 mm"))
 line_walleye <- make_line_figure(walleye, "Walleye",
                                  c("Min. 356 mm", "Min. 457 mm", "Slot 356-457 mm"))
-line_lmb <- make_line_figure(lmb, "Largemouth Bass",
+line_lmb <- make_line_figure(lmb, "Largemouth Bass (South)",
                              c("Min. 305 mm, low D", "Min. 305 mm, high D",
                                "Slot 305-508 mm, low D", "Slot 305-508 mm, high D"))
 
@@ -219,14 +219,13 @@ violin_walleye <- make_violin_figure(walleye, "Walleye",
                                      c("Min. 356 mm", "Min. 457 mm", "Slot 356-457 mm"),
                                      target_U = c(0.15, 0.30, 0.50),
                                      ypr_from_zero = TRUE, dot_size = 0.18)
-violin_lmb <- make_violin_figure(lmb, "Largemouth Bass",
+violin_lmb <- make_violin_figure(lmb, "Largemouth Bass (South)",
                                  c("Min. 305 mm, low D", "Min. 305 mm, high D",
                                    "Slot 305-508 mm, low D", "Slot 305-508 mm, high D"),
                                  target_U = c(0.10, 0.25, 0.50),
-                                 # Fast growth: Allen and Pine (2000) used the 75th
-                                 # percentile because the growth literature is
-                                 # concentrated at northern latitudes
-                                 growth = "fast")
+                                 # Southern moderate growth (lmb_south presets;
+                                 # see R/growth_presets.R)
+                                 growth = "moderate")
 
 ggsave("figures/line_crappie.png",   line_crappie,   width = 10, height = 7, dpi = 300)
 ggsave("figures/line_walleye.png",   line_walleye,   width = 9,  height = 7, dpi = 300)

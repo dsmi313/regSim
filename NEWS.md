@@ -1,3 +1,28 @@
+# regSim (development version)
+
+* Largemouth Bass now has separate northern and southern presets, shown in the
+  app as "Largemouth Bass (North)" (`lmb_north`) and "Largemouth Bass (South)"
+  (`lmb_south`). The old `lmb` key is removed. The previous Largemouth Bass
+  presets were quartiles of all FishBase records, northern and southern mixed.
+  Each region now has its own pool: South = 37 N or below, North = above 37 N
+  (New Mexico kept North for its 1,396 m elevation). Linf and K pools use the
+  Beamesderfer and North (1995, Table A.2) state means plus single-lake fits
+  (North n = 26, South n = 21); slow = 75th pct Linf with 25th pct K,
+  moderate = medians, fast = 25th pct Linf with 75th pct K. t0 is ordered the
+  same way from records with an estimated t0 (state values from free-t0
+  refits of Beamesderfer and North Table A.1). North: Linf 687/591/556 mm,
+  K 0.143/0.185/0.220, t0 -0.15/0.05/0.18. South: Linf 666/619/563 mm,
+  K 0.160/0.254/0.280, t0 -0.75/-0.33/-0.07. M stays 0.46 for both.
+* Every record, its source, and the percentile formulas are in
+  `inst/extdata/lmb_growth_presets.xlsx`. The app's About tab describes how the
+  presets were built.
+* `scripts/lmb_sim.R` now uses the southern presets, and the manuscript case
+  study (`scripts/manuscript_figures.R`) uses southern moderate growth instead
+  of the old fast growth. Rerun `lmb_sim.R` and `manuscript_figures.R` to
+  regenerate the Largemouth Bass results and figures.
+* Comments now say the black bass M values (0.46 and 0.43) are the
+  Beamesderfer and North (1995) Table 2 means; the medians are 0.42 and 0.39.
+
 # regSim 0.2.0
 
 * Walleye and Largemouth Bass growth presets updated to the current FishBase

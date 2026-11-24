@@ -2,7 +2,11 @@
 #
 # Largemouth bass regulation scenario simulations
 #
-# Growth parameters: FishBase median for Micropterus salmoides; see also:
+# Growth parameters: Largemouth Bass (South) presets (lmb_south). The southern
+# growth pool and how the presets were built are documented in
+# R/growth_presets.R and inst/extdata/lmb_growth_presets.xlsx. The manuscript
+# case study uses southern moderate growth; slow and fast are still run for the
+# sensitivity results in Supplementary Table S1. See also:
 #   Allen, M.S., Pine, W.E., Walters, C.J. 2008. Temporal trends in largemouth
 #   bass fisheries in Florida lakes: Estimates and simulations of contributed
 #   and harvested fish. Transactions of the American Fisheries Society
@@ -54,17 +58,17 @@ handlers(handler_progress(
 # mat_size = 203 mm (~8 in.), memorable_size = 510 mm (Gabelhouse 1984a, 51 cm)
 # capsize = 280 mm (50% capture vulnerability)
 # rec_cv = 0.5, amax = 12, ymax = 132, fec_exp = 1.18
-sp <- get_species_preset("lmb")
+sp <- get_species_preset("lmb_south")
 
 # ── Growth presets ────────────────────────────────────────────────────────────
-# FishBase quartiles for largemouth bass (41 records not flagged questionable,
-# pulled Nov 23, 2026): K at the 25th/50th/75th percentiles, Linf inversely paired.
-#   Slow:     Linf=640 mm, K=0.16 yr-1, t0=-0.21
-#   Moderate: Linf=592 mm, K=0.21 yr-1, t0= 0.00  (FishBase median)
-#   Fast:     Linf=554 mm, K=0.28 yr-1, t0= 0.10
-growth_slow     <- get_growth_preset("lmb", "slow")
-growth_moderate <- get_growth_preset("lmb", "moderate")
-growth_fast     <- get_growth_preset("lmb", "fast")
+# Largemouth Bass (South): 21 southern growth records (37 N or below). K at the
+# 25th/50th/75th percentiles with Linf inversely paired; t0 ordered the same way.
+#   Slow:     Linf=666 mm, K=0.160 yr-1, t0=-0.75
+#   Moderate: Linf=619 mm, K=0.254 yr-1, t0=-0.33  (manuscript case study)
+#   Fast:     Linf=563 mm, K=0.280 yr-1, t0=-0.07
+growth_slow     <- get_growth_preset("lmb_south", "slow")
+growth_moderate <- get_growth_preset("lmb_south", "moderate")
+growth_fast     <- get_growth_preset("lmb_south", "fast")
 
 # ── Exploitation rates — Allen et al. 2008 ───────────────────────────────────
 # Prior and elevated estimates at low / moderate / high effort.
@@ -210,7 +214,7 @@ for (i in seq_len(nrow(combos))) {
   }
 }
 
-cat("Largemouth bass simulation\n")
+cat("Largemouth bass (South) simulation\n")
 cat("  Combinations :", n_combos, "(4 scenarios x 3 growth x 3 U x 3 growth CV)\n")
 cat("  Replicates   :", nsim, "per combination\n\n")
 
@@ -252,7 +256,7 @@ results_list <- with_progress({
     )
 
     d               <- sim_out$sim_df
-    d$species       <- "lmb"
+    d$species       <- "lmb_south"
     d$scenario      <- combo$scenario
     d$growth_preset <- combo$growth_preset
     d$growth_cv     <- combo$growth_cv

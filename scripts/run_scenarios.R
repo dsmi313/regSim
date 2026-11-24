@@ -13,8 +13,8 @@ library(purrr)
 library(tidyr)
 library(ggplot2)
 
-# ── Species baseline: largemouth bass ─────────────────────────────────────────
-sp <- get_species_preset("lmb")
+# ── Species baseline: largemouth bass (North) ─────────────────────────────────────────
+sp <- get_species_preset("lmb_north")
 
 # ── Shared simulation settings ────────────────────────────────────────────────
 U_fixed  <- 0.30   # exploitation rate used for single-point scenarios

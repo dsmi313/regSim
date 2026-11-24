@@ -24,7 +24,8 @@ ui <- fluidPage(
                   choices = c("White Crappie" = "white_crappie",
                               "Black Crappie" = "black_crappie",
                               "Walleye" = "walleye",
-                              "Largemouth Bass" = "lmb",
+                              "Largemouth Bass (North)" = "lmb_north",
+                              "Largemouth Bass (South)" = "lmb_south",
                               "Smallmouth Bass" = "smb",
                               "Channel Catfish" = "channel_catfish",
                               "Blue Catfish" = "blue_catfish",
@@ -281,11 +282,23 @@ ui <- fluidPage(
                    tags$li(strong("White Crappie:"), "Empirical parameters from Smith et al. (2025)"),
                    tags$li(strong("Black Crappie:"), "FishBase median weight-length and growth parameters"),
                    tags$li(strong("Walleye:"), "FishBase median parameters"),
-                   tags$li(strong("Largemouth Bass:"), "FishBase median parameters"),
+                   tags$li(strong("Largemouth Bass (North) and (South):"), "Separate northern and southern growth presets (see below)"),
                    tags$li(strong("Smallmouth Bass:"), "FishBase median parameters"),
                    tags$li(strong("Channel Catfish:"), "FishBase median parameters"),
                    tags$li(strong("Blue Catfish:"), "FishBase median parameters"),
                    tags$li(strong("Custom:"), "Enter your own species-specific parameters")
+                 ),
+                 br(),
+                 h4("Largemouth Bass growth presets: North and South"),
+                 p("Largemouth Bass grow differently with latitude: southern populations grow faster in their first years, and northern populations grow slower and live longer (Beamesderfer and North 1995; Helser and Lai 2004). The app therefore offers two Largemouth Bass options. Choose the one closest to your water body."),
+                 tags$ul(
+                   tags$li(strong("Records:"), "Each option is built from published von Bertalanffy growth estimates. Both use the state means of Beamesderfer and North (1995, Table A.2; the same values FishBase lists). The northern option adds two Lake Rebecca, Minnesota records and a second Ontario record from FishBase (26 records in all). The southern option adds the Allen and Pine (2000) curve, Neely Henry Reservoir, Alabama (Pullen 2024), Lakes Rhodhiss and Glenville, North Carolina (NCWRC surveys), and six Florida lakes refit from Porak et al. (1986) (21 records in all)."),
+                   tags$li(strong("Region:"), "South = 37 degrees N or below; North = above 37 degrees N. New Mexico (33 degrees N) is grouped with the North because of its high elevation (1,396 m) and slow growth."),
+                   tags$li(strong("Linf and K:"), "Slow growth pairs the 75th percentile of Linf with the 25th percentile of K; moderate uses the medians; fast pairs the 25th percentile of Linf with the 75th percentile of K. Pairing large Linf with low K follows the negative correlation between the two among Largemouth Bass populations (Helser and Lai 2004)."),
+                   tags$li(strong("t0:"), "Set the same way (slow = 25th percentile, moderate = median, fast = 75th percentile) from records with an estimated t0. Beamesderfer and North fixed t0 at -0.024, so state t0 values come from refitting their Table A.1 mean lengths at age with t0 estimated."),
+                   tags$li(strong("Values (Linf mm / K / t0):"), "North slow 687 / 0.143 / -0.15, moderate 591 / 0.185 / 0.05, fast 556 / 0.220 / 0.18. South slow 666 / 0.160 / -0.75, moderate 619 / 0.254 / -0.33, fast 563 / 0.280 / -0.07."),
+                   tags$li(strong("Check:"), "Predicted length at age 1 (North 92 to 104 mm; South 146 to 177 mm) matches the observed state medians (North 93 mm; South 145 mm)."),
+                   tags$li(strong("Full record list:"), "inst/extdata/lmb_growth_presets.xlsx in the regSim repository lists every record, its source, and the formulas.")
                  ),
                  br(),
                  h4("Model Features"),
@@ -298,7 +311,7 @@ ui <- fluidPage(
                    tags$li(strong("Density-dependent recruitment (DDR):"), "Optional Beverton-Holt stock-recruitment with configurable steepness"),
                    tags$li(strong("Size-based selectivity:"), "Logistic vulnerability curves for capture and harvest"),
                    tags$li(strong("Regulations:"), "Harvest slot limits, protective slots, and maximum length limits"),
-                   tags$li(strong("Mortality:"), "Natural mortality (M) and configurable discard mortality. Default M: black bass (largemouth = 0.46, smallmouth = 0.43) use fixed literature-median values (Beamesderfer & North 1995); crappie use M = K; other species use M = 1.5K (Jensen 1996). M is always a directly editable input."),
+                   tags$li(strong("Mortality:"), "Natural mortality (M) and configurable discard mortality. Default M: black bass (largemouth = 0.46, smallmouth = 0.43) use fixed literature values (Beamesderfer & North 1995, Table 2 means; the same M is used for northern and southern largemouth bass); crappie use M = K; other species use M = 1.5K (Jensen 1996). M is always a directly editable input."),
                    tags$li(strong("Stochastic recruitment:"), "Lognormal variability with species-specific CV"),
                    tags$li(strong("Fecundity:"), "Weight-based egg production scaled by logistic maturity ogive"),
                    tags$li(strong("MSY analysis:"), "Maximum Sustainable Yield calculated from equilibrium yield and recruitment curves")
@@ -324,8 +337,12 @@ ui <- fluidPage(
                  p("Froese, R. and D. Pauly. Editors. 2024. FishBase. World Wide Web electronic publication. ",
                    a(href = "https://www.fishbase.org", "www.fishbase.org")),
                  p("Gabelhouse, D.W., Jr. 1984. A length-categorization system to assess fish stocks. North American Journal of Fisheries Management 4:273-285."),
+                 p("Allen, M.S. and W.E. Pine III. 2000. Detecting fish population responses to a minimum length limit: effects of variable recruitment and duration of evaluation. North American Journal of Fisheries Management 20:672-682."),
+                 p("Helser, T.E. and H.-L. Lai. 2004. A Bayesian hierarchical meta-analysis of fish growth: with an example for North American largemouth bass, Micropterus salmoides. Ecological Modelling 178:399-416."),
                  p("Jensen, A.L. 1996. Beverton and Holt life history invariants result from optimal trade-off of reproduction and survival. Canadian Journal of Fisheries and Aquatic Sciences 53:820-822."),
-                 p("Beamesderfer, R.C.P. and J.A. North. 1995. Growth, natural mortality, and predicted response to fishing for largemouth bass and smallmouth bass populations in North America. North American Journal of Fisheries Management 15:688-704. (Source of the fixed default M for largemouth and smallmouth bass; growth-based M regressions were found inappropriate for point estimates in these species.)")
+                 p("Beamesderfer, R.C.P. and J.A. North. 1995. Growth, natural mortality, and predicted response to fishing for largemouth bass and smallmouth bass populations in North America. North American Journal of Fisheries Management 15:688-704. (Source of the fixed default M for largemouth and smallmouth bass; growth-based M regressions were found inappropriate for point estimates in these species.)"),
+                 p("Porak, W., W.S. Coleman, and S. Crawford. 1986. Age, growth, and mortality of Florida largemouth bass utilizing otoliths. Proceedings of the Annual Conference Southeastern Association of Fish and Wildlife Agencies 40:206-215."),
+                 p("Pullen, T.J. 2024. Effects of size-selective catch-and-release angling on population size structure of two black bass species in an Alabama reservoir. MS thesis, Auburn University.")
         )
       )
     )

@@ -31,9 +31,10 @@ interface for exploring those tradeoffs without writing code.
 
 **Growth and biology**
 
-- **Species presets** (white crappie, black crappie, walleye, largemouth bass,
-  smallmouth bass, channel catfish, blue catfish) with slow / moderate / fast
-  growth scenarios
+- **Species presets** (white crappie, black crappie, walleye, largemouth bass
+  north and south, smallmouth bass, channel catfish, blue catfish) with slow /
+  moderate / fast growth scenarios. The largemouth bass growth records are in
+  `inst/extdata/lmb_growth_presets.xlsx`
 - **Growth CV** — coefficient of variation in length at age (default 0.15);
   spread grows with age and some fish grow past L∞. Higher values produce
   less modal length-frequency distributions
