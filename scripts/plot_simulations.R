@@ -80,7 +80,7 @@ species_config <- list(
 
   # ── Largemouth bass (2x2: regulation type x mortality level) ─────────────
   lmb = list(
-    label        = "Largemouth bass",
+    label        = "Largemouth bass (South)",
     rds          = "scripts/lmb_sim_results.rds",
     scen_levels  = c(
       "Min. length 305 mm, low mortality",

@@ -4,7 +4,8 @@
 #' the model inputs when a species is selected.
 #'
 #' @param species Species key, one of \code{"white_crappie"},
-#'   \code{"black_crappie"}, \code{"walleye"}, \code{"lmb"}, \code{"smb"},
+#'   \code{"black_crappie"}, \code{"walleye"}, \code{"lmb_north"},
+#'   \code{"lmb_south"}, \code{"smb"},
 #'   \code{"channel_catfish"}, or \code{"blue_catfish"}.
 #'
 #' @return A named list of preset values (weight-length coefficients, growth
@@ -38,26 +39,43 @@ get_species_preset <- function(species) {
       fec_exp = 1.18,
       label = "Loaded Walleye parameters (FishBase median)"
     ),
-    lmb = list(
+    lmb_north = list(
       wl_a = 8.16e-6, wl_b = 3.10, mat_size = 203, memorable_size = 510, stock_size = 200,
       harvlim = 305,
-      # Fixed species-median M from Beamesderfer and North (1995, NAJFM
-      # 15:688-704, Table 2), NOT the Jensen M = 1.5 K default. B&N found no
+      # Fixed M from Beamesderfer and North (1995, NAJFM 15:688-704, Table 2
+      # mean; median 0.42), NOT the Jensen M = 1.5 K default. B&N found no
       # significant growth-mortality correlation for largemouth bass (N = 698)
       # and showed growth-based M regressions run 23-35% low for this species,
       # so Jensen's coefficient does not apply. Idaho catch-curve data (Frawley,
       # IDFG) imply M/K ratios of 4.3-7.2, far outside Jensen's range. M and K
       # remain independent, user-overridable inputs.
-      linf = 592, vbk = 0.21, t0 = 0, nat_mort = 0.46,
+      # Growth = moderate preset in growth_presets.R (median of the northern pool)
+      linf = 591, vbk = 0.185, t0 = 0.05, nat_mort = 0.46,
       rec_cv = 0.5, amax = 12, ymax = 132, capsize = 200,
       fec_exp = 1.18,
-      label = "Loaded Largemouth Bass parameters (FishBase median)"
+      label = "Loaded Largemouth Bass (North) parameters (northern growth pool median)"
+    ),
+    lmb_south = list(
+      wl_a = 8.16e-6, wl_b = 3.10, mat_size = 203, memorable_size = 510, stock_size = 200,
+      harvlim = 305,
+      # Fixed M from Beamesderfer and North (1995, NAJFM 15:688-704, Table 2
+      # mean; median 0.42), NOT the Jensen M = 1.5 K default. B&N found no
+      # significant growth-mortality correlation for largemouth bass (N = 698)
+      # and showed growth-based M regressions run 23-35% low for this species,
+      # so Jensen's coefficient does not apply. Idaho catch-curve data (Frawley,
+      # IDFG) imply M/K ratios of 4.3-7.2, far outside Jensen's range. M and K
+      # remain independent, user-overridable inputs.
+      # Growth = moderate preset in growth_presets.R (median of the southern pool)
+      linf = 619, vbk = 0.254, t0 = -0.33, nat_mort = 0.46,
+      rec_cv = 0.5, amax = 12, ymax = 132, capsize = 200,
+      fec_exp = 1.18,
+      label = "Loaded Largemouth Bass (South) parameters (southern growth pool median)"
     ),
     smb = list(
       wl_a = 1.09e-5, wl_b = 3.08, mat_size = 254, memorable_size = 430, stock_size = 180,
       harvlim = 305,
-      # Fixed species-median M from Beamesderfer and North (1995, NAJFM
-      # 15:688-704, Table 2), NOT the Jensen M = 1.5 K default. B&N found no
+      # Fixed M from Beamesderfer and North (1995, NAJFM 15:688-704, Table 2
+      # mean; median 0.39), NOT the Jensen M = 1.5 K default. B&N found no
       # significant growth-mortality correlation for smallmouth bass (N = 409)
       # and showed growth-based M regressions run 23-35% low for this species,
       # so Jensen's coefficient does not apply. Idaho catch-curve data (Frawley,
