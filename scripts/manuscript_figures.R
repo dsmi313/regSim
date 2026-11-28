@@ -13,7 +13,14 @@ library(cowplot)
 # and 0.20; those appear only in Supplementary Table S1 as a sensitivity check.
 main_cv <- 0.15
 
-crappie <- readRDS("scripts/crappie_sim_results.rds") |>
+# Results saved before the PSD-M rename have a "Prop" column; read either.
+read_results <- function(path) {
+  df <- readRDS(path)
+  if ("Prop" %in% names(df) && !"PSDM" %in% names(df)) df <- dplyr::rename(df, PSDM = Prop)
+  df
+}
+
+crappie <- read_results("scripts/crappie_sim_results.rds") |>
   filter(growth_cv == main_cv) |>
   mutate(scenario = recode(scenario,
                            "No regulation"               = "No regulation",
@@ -22,7 +29,7 @@ crappie <- readRDS("scripts/crappie_sim_results.rds") |>
                            "Slot 254-356 mm (10-14 in.)" = "Slot 254-356 mm"
   ))
 
-walleye <- readRDS("scripts/walleye_sim_results.rds") |>
+walleye <- read_results("scripts/walleye_sim_results.rds") |>
   filter(growth_cv == main_cv) |>
   mutate(scenario = recode(scenario,
                            "Min. length 356 mm (14 in.)" = "Min. 356 mm",
@@ -30,7 +37,7 @@ walleye <- readRDS("scripts/walleye_sim_results.rds") |>
                            "Harvest slot 356-457 mm"     = "Slot 356-457 mm"
   ))
 
-lmb <- readRDS("scripts/lmb_sim_results.rds") |>
+lmb <- read_results("scripts/lmb_sim_results.rds") |>
   filter(growth_cv == main_cv) |>
   mutate(scenario = recode(scenario,
                            "Min. length 305 mm, low mortality"          = "Min. 305 mm, low D",
@@ -56,7 +63,7 @@ make_line_figure <- function(df, scen_levels) {
     summarise(
       SPR_mean  = mean(SPR),  SPR_lo  = quantile(SPR,  0.025), SPR_hi  = quantile(SPR,  0.975),
       YPR_mean  = mean(YPR),  YPR_lo  = quantile(YPR,  0.025), YPR_hi  = quantile(YPR,  0.975),
-      Prop_mean = mean(Prop), Prop_lo = quantile(Prop, 0.025), Prop_hi = quantile(Prop, 0.975),
+      PSDM_mean = mean(PSDM), PSDM_lo = quantile(PSDM, 0.025), PSDM_hi = quantile(PSDM, 0.975),
       .groups = "drop"
     )
   
@@ -99,10 +106,10 @@ make_line_figure <- function(df, scen_levels) {
     base_theme +
     theme(strip.text = element_blank())
   
-  p_prop <- ggplot(summary_df, aes(x = U, colour = growth_preset,
+  p_psdm <- ggplot(summary_df, aes(x = U, colour = growth_preset,
                                    linetype = growth_preset, fill = growth_preset)) +
-    geom_ribbon(aes(ymin = Prop_lo, ymax = Prop_hi), alpha = 0.12, colour = NA) +
-    geom_line(aes(y = Prop_mean), linewidth = 0.8) +
+    geom_ribbon(aes(ymin = PSDM_lo, ymax = PSDM_hi), alpha = 0.12, colour = NA) +
+    geom_line(aes(y = PSDM_mean), linewidth = 0.8) +
     facet_wrap(~ scenario, nrow = 1) +
     scale_colour_manual(values = growth_colors, name = "Growth",
                         labels = c("Slow", "Moderate", "Fast")) +
@@ -124,7 +131,7 @@ make_line_figure <- function(df, scen_levels) {
     )
   
   # Species names go in the manuscript figure captions, not on the figure.
-  plot_grid(p_spr, p_ypr, p_prop, ncol = 1,
+  plot_grid(p_spr, p_ypr, p_psdm, ncol = 1,
             rel_heights = c(1, 1, 1.6),
             align = "v", axis = "lr")
 }
@@ -188,10 +195,10 @@ make_violin_figure <- function(df, scen_levels, target_U,
     theme(axis.text.y = element_text(),
           plot.margin = margin(5.5, 5.5, 5.5, 20))
   p_ypr  <- make_vp("YPR",  "YPR (kg)", from_zero = ypr_from_zero)
-  p_prop <- make_vp("Prop", "PSD-M", pct = TRUE)
+  p_psdm <- make_vp("PSDM", "PSD-M", pct = TRUE)
   
   # Species names go in the manuscript figure captions, not on the figure.
-  plot_grid(p_spr, p_ypr, p_prop, ncol = 3,
+  plot_grid(p_spr, p_ypr, p_psdm, ncol = 3,
             rel_widths = c(1.4, 1, 1),
             align = "h", axis = "tb")
 }
@@ -227,9 +234,9 @@ ggsave("figures/violin_walleye.png", violin_walleye, width = 10, height = 7, dpi
 ggsave("figures/violin_lmb.png",     violin_lmb,     width = 14, height = 9, dpi = 300)
 
 
-crappie <- readRDS("scripts/crappie_sim_results.rds")
-walleye <- readRDS("scripts/walleye_sim_results.rds")
-lmb     <- readRDS("scripts/lmb_sim_results.rds")
+crappie <- read_results("scripts/crappie_sim_results.rds")
+walleye <- read_results("scripts/walleye_sim_results.rds")
+lmb     <- read_results("scripts/lmb_sim_results.rds")
 
 bind_rows(crappie, walleye, lmb) |>
   group_by(species, scenario, growth_preset, growth_cv, U, DisMort) |>
@@ -245,10 +252,10 @@ bind_rows(crappie, walleye, lmb) |>
     SPR_q975  = quantile(SPR,  0.975),
     SPR_sd    = sd(SPR),
     # PSD-M: proportion of stock-size fish that are memorable size
-    PSDM_mean = mean(Prop),
-    PSDM_q025 = quantile(Prop, 0.025),
-    PSDM_q975 = quantile(Prop, 0.975),
-    PSDM_sd   = sd(Prop),
+    PSDM_mean = mean(PSDM),
+    PSDM_q025 = quantile(PSDM, 0.025),
+    PSDM_q975 = quantile(PSDM, 0.975),
+    PSDM_sd   = sd(PSDM),
     n         = n(),
     .groups   = "drop"
   ) |>

@@ -104,7 +104,7 @@ make_growth_matrix <- function(Linf, vbk, t0, bin_midpoints, length_bins,
 #' @param enable_max_limit Logical; apply a maximum-length limit.
 #' @param max_harvest_size Maximum harvest length (mm); required when
 #'   \code{enable_max_limit = TRUE}.
-#' @param stock_size Gabelhouse (1984) stock length (mm). Proportion memorable
+#' @param stock_size Gabelhouse (1984) stock length (mm). PSD-M
 #'   is memorable-size fish divided by stock-size fish; \code{NULL} divides by
 #'   all fish instead.
 #'
@@ -153,7 +153,7 @@ make_vulnerability_curves <- function(bin_midpoints,
 
   trophyvul_bins <- 1 / (1 + exp(-(bin_midpoints - memorable_size) /
                                    (memorable_size * 0.1)))
-  # Stock-size fish: denominator of proportion memorable (an RSD-M-type index,
+  # Stock-size fish: denominator of PSD-M (an RSD-M-type index,
   # Gabelhouse 1984). NULL keeps every fish in the denominator.
   stockvul_bins <- if (is.null(stock_size)) rep(1, length(bin_midpoints)) else
     1 / (1 + exp(-(bin_midpoints - stock_size) / (stock_size * 0.1)))
@@ -204,7 +204,7 @@ make_vulnerability_curves <- function(bin_midpoints,
 #' @param enable_depensation Logical; apply depensation below 20\% of unfished
 #'   spawning stock biomass.
 #' @param stockvul_bins Per-bin stock-size curve from
-#'   \code{\link{make_vulnerability_curves}}; proportion memorable is computed
+#'   \code{\link{make_vulnerability_curves}}; PSD-M is computed
 #'   relative to these fish. \code{NULL} uses all fish.
 #' @param collect_full_output When \code{TRUE}, also return the per-year,
 #'   per-replicate matrices needed for time-series and population-structure
@@ -213,11 +213,11 @@ make_vulnerability_curves <- function(bin_midpoints,
 #'   (e.g. to drive a Shiny progress bar).
 #'
 #' @return A list with \code{sim_df} (data.frame: \code{sim}, \code{YPR},
-#'   \code{SPR}, \code{Prop}, \code{MeanLengthHarvested}, \code{Recruit}) and
+#'   \code{SPR}, \code{PSDM}, \code{MeanLengthHarvested}, \code{Recruit}) and
 #'   \code{burnin_years}. \code{SPR} is stock egg production relative to the
 #'   unfished equilibrium; values above 1 occur in favourable recruitment years.
 #'   When \code{collect_full_output = TRUE}, also \code{all_YPR}, \code{all_SPR},
-#'   \code{all_Prop}, \code{all_EggProd}, \code{all_Abundance}, and
+#'   \code{all_PSDM}, \code{all_EggProd}, \code{all_Abundance}, and
 #'   \code{all_AgeAbundance}.
 #' @importFrom stats rlnorm
 #' @export
@@ -296,7 +296,7 @@ run_population_simulation <- function(bin_midpoints, length_bins,
     sim                = seq_len(nsim),
     YPR                = rep(NA_real_, nsim),
     SPR                = rep(NA_real_, nsim),
-    Prop               = rep(NA_real_, nsim),
+    PSDM               = rep(NA_real_, nsim),
     MeanLengthHarvested = rep(NA_real_, nsim),
     Recruit            = rep(NA_real_, nsim)
   )
@@ -304,7 +304,7 @@ run_population_simulation <- function(bin_midpoints, length_bins,
   if (collect_full_output) {
     all_YPR          <- matrix(NA_real_, Ymax, nsim)
     all_SPR          <- matrix(NA_real_, Ymax, nsim)
-    all_Prop         <- matrix(NA_real_, Ymax, nsim)
+    all_PSDM         <- matrix(NA_real_, Ymax, nsim)
     all_EggProd      <- matrix(NA_real_, Ymax, nsim)
     all_Abundance    <- matrix(NA_real_, L_bins, nsim)
     all_AgeAbundance <- matrix(NA_real_, Amax,   nsim)
@@ -335,7 +335,7 @@ run_population_simulation <- function(bin_midpoints, length_bins,
       last_50_start <- max(start_year, Ymax - 49L)
       n50           <- Ymax - last_50_start + 1L
 
-      SPR_acc <- Yield_acc <- Prop_acc <- Recruit_acc <- 0.0
+      SPR_acc <- Yield_acc <- PSDM_acc <- Recruit_acc <- 0.0
       harv_len_sum <- 0.0
       harv_len_n   <- 0L
       eggs_prev    <- eggs_prev_ref
@@ -362,7 +362,7 @@ run_population_simulation <- function(bin_midpoints, length_bins,
           yld_i       <- sum(harvest_weight_bins * N_cur)
           SPR_acc     <- SPR_acc     + eggs_cur / SPR_denom
           Yield_acc   <- Yield_acc   + yld_i
-          Prop_acc    <- Prop_acc    + sum(trophyvul_bins * N_cur) / max(1, sum(stockvul_bins * N_cur))
+          PSDM_acc    <- PSDM_acc    + sum(trophyvul_bins * N_cur) / max(1, sum(stockvul_bins * N_cur))
           Recruit_acc <- Recruit_acc + Rcapacity[i]
           hb_tot      <- sum(harvest_number_bins * N_cur)
           if (hb_tot > 0) {
@@ -379,7 +379,7 @@ run_population_simulation <- function(bin_midpoints, length_bins,
       # inflates YPR by about (1 + rec_cv^2) under lognormal recruitment,
       # because yield_t comes mostly from earlier cohorts.
       sim_df$YPR[k]               <- Yield_acc   / max(1, Recruit_acc)
-      sim_df$Prop[k]              <- Prop_acc    / n50
+      sim_df$PSDM[k]              <- PSDM_acc    / n50
       sim_df$Recruit[k]           <- Recruit_acc / n50
       sim_df$MeanLengthHarvested[k] <-
         if (harv_len_n > 0) harv_len_sum / harv_len_n else NA_real_
@@ -394,7 +394,7 @@ run_population_simulation <- function(bin_midpoints, length_bins,
     Yield  <- rep(NA_real_, Ymax)
     SPRt   <- rep(NA_real_, Ymax)
     YPR    <- rep(NA_real_, Ymax)
-    Prop   <- rep(NA_real_, Ymax)
+    PSDM   <- rep(NA_real_, Ymax)
     eggs_t <- rep(NA_real_, Ymax)
 
     # --- Restore cached burn-in state (computed once outside the k-loop) ------
@@ -418,7 +418,7 @@ run_population_simulation <- function(bin_midpoints, length_bins,
       eggs_t[yr] <- sum(N[yr, ] * Fec_bins)
       SPRt[yr]   <- eggs_t[yr] / SPR_denom   # approaches 1.0 as burn-in converges
       YPR[yr]    <- 0
-      Prop[yr]   <- sum(trophyvul_bins * N[yr, ]) / max(1, sum(stockvul_bins * N[yr, ]))
+      PSDM[yr]   <- sum(trophyvul_bins * N[yr, ]) / max(1, sum(stockvul_bins * N[yr, ]))
     }
 
     # --- Fished simulation years ---------------------------------------------
@@ -447,7 +447,7 @@ run_population_simulation <- function(bin_midpoints, length_bins,
       # SPR = stock egg production relative to the unfished equilibrium.
       # Values > 1 occur in favourable recruitment years (biologically meaningful).
       SPRt[i]          <- eggs_t[i] / SPR_denom
-      Prop[i]          <- sum(trophyvul_bins * N[i, ]) / max(1, sum(stockvul_bins * N[i, ]))
+      PSDM[i]          <- sum(trophyvul_bins * N[i, ]) / max(1, sum(stockvul_bins * N[i, ]))
     }
 
     # --- Summarise last 50 fished years into sim_df row ----------------------
@@ -461,7 +461,7 @@ run_population_simulation <- function(bin_midpoints, length_bins,
     # biased upward). Its mean over those years equals sim_df$YPR[k].
     fished        <- start_year:Ymax
     YPR[fished]   <- Yield[fished] / max(1, mean(Rcapacity[idx]))
-    sim_df$Prop[k]    <- mean(Prop[idx],     na.rm = TRUE)
+    sim_df$PSDM[k]    <- mean(PSDM[idx],     na.rm = TRUE)
     sim_df$Recruit[k] <- mean(Rcapacity[idx], na.rm = TRUE)
 
     harvest_lengths <- vapply(idx, function(yr) {
@@ -475,7 +475,7 @@ run_population_simulation <- function(bin_midpoints, length_bins,
     if (collect_full_output) {
       all_YPR[, k]          <- YPR
       all_SPR[, k]          <- SPRt
-      all_Prop[, k]         <- Prop
+      all_PSDM[, k]         <- PSDM
       all_EggProd[, k]      <- eggs_t
       all_Abundance[, k]    <- N[Ymax, ]
       all_AgeAbundance[, k] <- rowSums(age_len)
@@ -486,7 +486,7 @@ run_population_simulation <- function(bin_midpoints, length_bins,
   if (collect_full_output) {
     out$all_YPR          <- all_YPR
     out$all_SPR          <- all_SPR
-    out$all_Prop         <- all_Prop
+    out$all_PSDM         <- all_PSDM
     out$all_EggProd      <- all_EggProd
     out$all_Abundance    <- all_Abundance
     out$all_AgeAbundance <- all_AgeAbundance

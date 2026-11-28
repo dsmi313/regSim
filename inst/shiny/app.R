@@ -188,7 +188,7 @@ ui <- fluidPage(
                  br(),
                  plotlyOutput("ypr_plot", height = "300px"),
                  plotlyOutput("spr_plot", height = "300px"),
-                 plotlyOutput("prop_plot", height = "300px"),
+                 plotlyOutput("psdm_plot", height = "300px"),
                  uiOutput("param_hist_ui")
         ),
         
@@ -224,7 +224,7 @@ ui <- fluidPage(
                  h4("Comparison Plots"),
                  plotlyOutput("compare_ypr", height = "400px"),
                  plotlyOutput("compare_spr", height = "400px"),
-                 plotlyOutput("compare_prop", height = "400px"),
+                 plotlyOutput("compare_psdm", height = "400px"),
                  br(),
                  h4("Summary Table"),
                  tableOutput("compare_table")
@@ -266,7 +266,7 @@ ui <- fluidPage(
                  ),
                  plotlyOutput("yield_curve_plot", height = "400px"),
                  plotlyOutput("spr_curve_plot", height = "400px"),
-                 plotlyOutput("prop_curve_plot", height = "400px")
+                 plotlyOutput("psdm_curve_plot", height = "400px")
         ),
         
         tabPanel("About",
@@ -486,7 +486,7 @@ server <- function(input, output, session) {
         # Per-year trajectories retained so the timeseries band reflects the
         # full path of each parameter draw, not just its equilibrium average.
         ypr_list <- vector("list", n); spr_list  <- vector("list", n)
-        prop_list <- vector("list", n); egg_list <- vector("list", n)
+        psdm_list <- vector("list", n); egg_list <- vector("list", n)
         for (k in seq_len(n)) {
           if (k %% max(1L, n %/% 20L) == 0)
             incProgress(0, detail = paste("Uncertainty sample", k, "of", n))
@@ -534,13 +534,13 @@ server <- function(input, output, session) {
           )
           ypr_list[[k]]  <- sim_k$all_YPR
           spr_list[[k]]  <- sim_k$all_SPR
-          prop_list[[k]] <- sim_k$all_Prop
+          psdm_list[[k]] <- sim_k$all_PSDM
           egg_list[[k]]  <- sim_k$all_EggProd
           df_k <- sim_k$sim_df
           unc_list[[k]] <- data.frame(
             YPR                 = mean(df_k$YPR,                 na.rm = TRUE),
             SPR                 = mean(df_k$SPR,                 na.rm = TRUE),
-            Prop                = mean(df_k$Prop,                na.rm = TRUE),
+            PSDM                = mean(df_k$PSDM,                na.rm = TRUE),
             MeanLengthHarvested = mean(df_k$MeanLengthHarvested, na.rm = TRUE),
             nat_mort = mort_samps$nat_mort[k],
             U        = mort_samps$U[k],
@@ -551,7 +551,7 @@ server <- function(input, output, session) {
         }
         uncertainty_results(do.call(rbind, unc_list))
         uncertainty_ts_data(
-          summarize_uncertainty_timeseries(ypr_list, spr_list, prop_list,
+          summarize_uncertainty_timeseries(ypr_list, spr_list, psdm_list,
                                            egg_list, Ymax)
         )
       } else {
@@ -607,8 +607,8 @@ server <- function(input, output, session) {
         for (w in checks$warnings) cat(paste0("  ⚠️  WARNING: ", w, "\n"))
       }
       cat(sprintf("  PSD-M:            %.4f ± %.4f\n",
-                  mean(results$Prop, na.rm = TRUE),
-                  sd(results$Prop, na.rm = TRUE)))
+                  mean(results$PSDM, na.rm = TRUE),
+                  sd(results$PSDM, na.rm = TRUE)))
     } else {
       unc_summary <- summarize_uncertainty_results(unc)
       unc_parts <- c(
@@ -619,7 +619,7 @@ server <- function(input, output, session) {
                   paste(unc_parts, collapse = " + ")))
       ypr_row  <- unc_summary[unc_summary$metric == "YPR",                 ]
       spr_row  <- unc_summary[unc_summary$metric == "SPR",                 ]
-      prop_row <- unc_summary[unc_summary$metric == "Prop",                ]
+      psdm_row <- unc_summary[unc_summary$metric == "PSDM",                ]
       mln_row  <- unc_summary[unc_summary$metric == "MeanLengthHarvested", ]
       cat(sprintf("  YPR:              %.4f [%.4f, %.4f] kg\n",
                   ypr_row$median, ypr_row$lower95, ypr_row$upper95))
@@ -636,7 +636,7 @@ server <- function(input, output, session) {
         for (w in checks$warnings) cat(paste0("  ⚠️  WARNING: ", w, "\n"))
       }
       cat(sprintf("  PSD-M:            %.4f [%.4f, %.4f]\n",
-                  prop_row$median, prop_row$lower95, prop_row$upper95))
+                  psdm_row$median, psdm_row$lower95, psdm_row$upper95))
     }
   })
 
@@ -690,7 +690,7 @@ server <- function(input, output, session) {
     ggplotly(p)
   })
 
-  output$prop_plot <- renderPlotly({
+  output$psdm_plot <- renderPlotly({
     req(sim_results())
     unc        <- uncertainty_results()
     plot_data  <- if (!is.null(unc)) unc else sim_results()
@@ -702,7 +702,7 @@ server <- function(input, output, session) {
       paste0("Distribution across ", paste(unc_parts, collapse = " + "), " uncertainty")
     } else NULL
     memorable_inches <- round(input$memorable_size / 25.4, 1)
-    p <- ggplot(plot_data, aes(x = "", y = Prop)) +
+    p <- ggplot(plot_data, aes(x = "", y = PSDM)) +
       geom_violin(fill = "orange", alpha = 0.7, color = "black") +
       geom_boxplot(width = 0.1, fill = "white", alpha = 0.5) +
       stat_summary(fun = mean, geom = "point", color = "red", size = 3) +
@@ -767,10 +767,10 @@ server <- function(input, output, session) {
            x = "", y = "SPR") +
       theme_minimal()
     memorable_inches <- round(input$memorable_size / 25.4, 1)
-    p3 <- ggplot(ts_data, aes(x = Year, y = Prop_mean)) +
+    p3 <- ggplot(ts_data, aes(x = Year, y = PSDM_mean)) +
       annotate("rect", xmin = 1, xmax = burnin_years_plot, ymin = -Inf, ymax = Inf,
                fill = "gray", alpha = 0.2) +
-      band_geom("Prop_lower", "Prop_upper", "darkorange") +
+      band_geom("PSDM_lower", "PSDM_upper", "darkorange") +
       geom_line(color = "darkorange", size = 1) +
       geom_vline(xintercept = burnin_years_plot, linetype = "dotted", color = "gray40", alpha = 0.7) +
       labs(title = paste0("PSD-M (memorable ≥", memorable_inches, "\") Over Time"),
@@ -965,8 +965,8 @@ server <- function(input, output, session) {
       YPR_sd = sd(results$YPR, na.rm = TRUE),
       SPR_mean = mean(results$SPR, na.rm = TRUE),
       SPR_sd = sd(results$SPR, na.rm = TRUE),
-      Prop_mean = mean(results$Prop, na.rm = TRUE),
-      Prop_sd = sd(results$Prop, na.rm = TRUE),
+      PSDM_mean = mean(results$PSDM, na.rm = TRUE),
+      PSDM_sd = sd(results$PSDM, na.rm = TRUE),
       stringsAsFactors = FALSE
     )
     results$Scenario <- scenario_name
@@ -1018,10 +1018,10 @@ server <- function(input, output, session) {
                       scenarios$Linf[i],
                       scenarios$K[i]))
         }
-        cat(sprintf("   YPR=%.4f, SPR=%.4f, Prop=%.4f\n\n",
+        cat(sprintf("   YPR=%.4f, SPR=%.4f, PSDM=%.4f\n\n",
                     scenarios$YPR_mean[i],
                     scenarios$SPR_mean[i],
-                    scenarios$Prop_mean[i]))
+                    scenarios$PSDM_mean[i]))
       }
     }
   })
@@ -1056,10 +1056,10 @@ server <- function(input, output, session) {
     ggplotly(p)
   })
 
-  output$compare_prop <- renderPlotly({
+  output$compare_psdm <- renderPlotly({
     details <- detailed_results()
     req(nrow(details) > 0)
-    p <- ggplot(details, aes(x = Scenario, y = Prop, fill = Scenario)) +
+    p <- ggplot(details, aes(x = Scenario, y = PSDM, fill = Scenario)) +
       geom_violin(alpha = 0.7) +
       geom_boxplot(width = 0.1, fill = "white", alpha = 0.5) +
       stat_summary(fun = mean, geom = "point", color = "red", size = 3) +
@@ -1081,13 +1081,13 @@ server <- function(input, output, session) {
                                         paste0("protect ", MLL_inches, "-", Slot_upper_inches, "\"")),
                                  paste0(MLL_inches, "\" min"))) %>%
       select(Scenario, Exploitation, Regulation, Linf, K,
-             YPR_mean, SPR_mean, Prop_mean) %>%
+             YPR_mean, SPR_mean, PSDM_mean) %>%
       rename(
         `U (%)` = Exploitation,
         `L∞` = Linf,
         `YPR` = YPR_mean,
         `SPR` = SPR_mean,
-        `PSD-M` = Prop_mean
+        `PSD-M` = PSDM_mean
       ) %>%
       mutate(`U (%)` = round(`U (%)` * 100, 1),
              YPR = round(YPR, 4),
@@ -1231,15 +1231,15 @@ server <- function(input, output, session) {
     ggplotly(p)
   })
 
-  output$prop_curve_plot <- renderPlotly({
+  output$psdm_curve_plot <- renderPlotly({
     curve_data <- yield_curve_data()
     req(!is.null(curve_data))
-    curve_data$Prop_lower <- pmax(0, curve_data$Prop_mean - 1.96 * curve_data$Prop_sd)
-    curve_data$Prop_upper <- pmin(1, curve_data$Prop_mean + 1.96 * curve_data$Prop_sd)
+    curve_data$PSDM_lower <- pmax(0, curve_data$PSDM_mean - 1.96 * curve_data$PSDM_sd)
+    curve_data$PSDM_upper <- pmin(1, curve_data$PSDM_mean + 1.96 * curve_data$PSDM_sd)
     memorable_inches <- round(input$memorable_size / 25.4, 1)
-    p <- ggplot(curve_data, aes(x = U * 100, y = Prop_mean)) +
+    p <- ggplot(curve_data, aes(x = U * 100, y = PSDM_mean)) +
       geom_line(color = "darkorange", size = 1.5) +
-      geom_ribbon(aes(ymin = Prop_lower, ymax = Prop_upper),
+      geom_ribbon(aes(ymin = PSDM_lower, ymax = PSDM_upper),
                   alpha = 0.2, fill = "darkorange") +
       geom_point(color = "darkorange", size = 2) +
       labs(title = paste0("PSD-M (memorable ≥", memorable_inches, "\") vs Exploitation Rate"),

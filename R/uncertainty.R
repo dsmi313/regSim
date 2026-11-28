@@ -103,7 +103,7 @@ sample_mortality_parameters <- function(nat_mort, U, DisMort, cv, n) {
 #' @param progress_fn Optional \code{function(k, n)} for progress reporting.
 #'
 #' @return A data.frame with \code{nsim} rows and columns \code{YPR},
-#'   \code{SPR}, \code{Prop}, \code{MeanLengthHarvested}, \code{nat_mort},
+#'   \code{SPR}, \code{PSDM}, \code{MeanLengthHarvested}, \code{nat_mort},
 #'   \code{U}, \code{DisMort}.
 #' @export
 run_uncertainty_simulation <- function(nat_mort, U, DisMort, cv, nsim,
@@ -150,7 +150,7 @@ run_uncertainty_simulation <- function(nat_mort, U, DisMort, cv, nsim,
     results[[k]] <- data.frame(
       YPR                 = mean(df_k$YPR,                 na.rm = TRUE),
       SPR                 = mean(df_k$SPR,                 na.rm = TRUE),
-      Prop                = mean(df_k$Prop,                na.rm = TRUE),
+      PSDM                = mean(df_k$PSDM,                na.rm = TRUE),
       MeanLengthHarvested = mean(df_k$MeanLengthHarvested, na.rm = TRUE),
       nat_mort            = p$nat_mort,
       U                   = p$U,
@@ -208,16 +208,16 @@ sample_growth_parameters <- function(Linf, vbk, cv, n) {
 #' draws \emph{and} recruitment replicates, so the resulting band reflects
 #' combined parameter + recruitment uncertainty.
 #'
-#' @param ypr_list,spr_list,prop_list,egg_list Lists of \code{Ymax x nsim_inner}
+#' @param ypr_list,spr_list,psdm_list,egg_list Lists of \code{Ymax x nsim_inner}
 #'   matrices, one element per parameter draw.
 #' @param Ymax Number of years simulated.
 #'
 #' @return A data.frame with one row per year and \code{median}/\code{lower}/
 #'   \code{upper} columns for each metric (\code{YPR_*}, \code{SPR_*},
-#'   \code{Prop_*}, \code{EggProd_*}).
+#'   \code{PSDM_*}, \code{EggProd_*}).
 #' @importFrom stats median quantile
 #' @export
-summarize_uncertainty_timeseries <- function(ypr_list, spr_list, prop_list,
+summarize_uncertainty_timeseries <- function(ypr_list, spr_list, psdm_list,
                                              egg_list, Ymax) {
   band <- function(mat_list) {
     pooled <- do.call(cbind, mat_list)  # Ymax x (ndraws * nsim_inner)
@@ -228,12 +228,12 @@ summarize_uncertainty_timeseries <- function(ypr_list, spr_list, prop_list,
     )
   }
   y <- band(ypr_list); s <- band(spr_list)
-  p <- band(prop_list); e <- band(egg_list)
+  p <- band(psdm_list); e <- band(egg_list)
   data.frame(
     Year          = seq_len(Ymax),
     YPR_med       = y$med, YPR_lower     = y$lower, YPR_upper     = y$upper,
     SPR_med       = s$med, SPR_lower     = s$lower, SPR_upper     = s$upper,
-    Prop_med      = p$med, Prop_lower    = p$lower, Prop_upper    = p$upper,
+    PSDM_med      = p$med, PSDM_lower    = p$lower, PSDM_upper    = p$upper,
     EggProd_med   = e$med, EggProd_lower = e$lower, EggProd_upper = e$upper,
     row.names     = NULL
   )
@@ -253,7 +253,7 @@ summarize_uncertainty_timeseries <- function(ypr_list, spr_list, prop_list,
 #' @importFrom stats median quantile
 #' @export
 summarize_uncertainty_results <- function(results_df) {
-  metrics <- c("YPR", "SPR", "Prop")
+  metrics <- c("YPR", "SPR", "PSDM")
   rows <- lapply(metrics, function(m) {
     x <- results_df[[m]]
     data.frame(

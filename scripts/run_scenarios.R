@@ -89,8 +89,7 @@ scenarios <- data.frame(
 #   YPR / YPR_sd        – yield-per-recruit mean and SD across replicates
 #   SPR / SPR_sd        – spawning potential ratio mean and SD
 #   mean_harvested_len  – mean length of harvested fish (mm)
-#   trophy_proportion   – proportion of fish ≥ memorable size, mean and SD
-#   trophy_sd
+#   psdm / psdm_sd     – PSD-M (memorable-size / stock-size fish) mean and SD
 #   mean_recruit        – mean equilibrium recruitment
 #   release_mort_rate   – alias for dismort_rate (for clarity in plots)
 run_one_scenario <- function(name, Harvlim, enable_slot, slot_type, slot_upper, DisMort) {
@@ -130,8 +129,8 @@ run_one_scenario <- function(name, Harvlim, enable_slot, slot_type, slot_upper, 
     SPR                = mean(d$SPR),
     SPR_sd             = sd(d$SPR),
     mean_harvested_len = mean(d$MeanLengthHarvested),
-    trophy_proportion  = mean(d$Prop),
-    trophy_sd          = sd(d$Prop),
+    psdm  = mean(d$PSDM),
+    psdm_sd          = sd(d$PSDM),
     mean_recruit       = mean(d$Recruit),
     release_mort_rate  = DisMort,
     stringsAsFactors   = FALSE
@@ -179,7 +178,7 @@ results <- bind_rows(
 
 message("Scenario results:")
 print(results[, c("scenario", "YPR", "SPR", "mean_harvested_len",
-                  "trophy_proportion", "yield", "release_mort_rate")])
+                  "psdm", "yield", "release_mort_rate")])
 
 # ── Run yield curves ──────────────────────────────────────────────────────────
 message("\nRunning yield curves (", nrow(scenarios), " scenarios × ",
@@ -227,18 +226,18 @@ p_spr <- ggplot(results,
   ) +
   theme_minimal(base_size = 12)
 
-# 3. Trophy proportion vs. SPR trade-off scatter
+# 3. PSD-M vs. SPR trade-off scatter
 p_tradeoff <- ggplot(results,
-                     aes(x = SPR, y = trophy_proportion,
+                     aes(x = SPR, y = psdm,
                          colour = scenario, shape = scenario)) +
   geom_vline(xintercept = 0.30, linetype = "dashed", colour = "firebrick",
              linewidth = 0.6) +
   geom_point(size = 5) +
   scale_shape_manual(values = c(15, 16, 17, 18, 19)) +
   labs(
-    title   = "Trophy Proportion vs. SPR Trade-off",
+    title   = "PSD-M vs. SPR Trade-off",
     x       = "Spawning Potential Ratio (SPR)",
-    y       = "Trophy proportion (≥ memorable size)",
+    y       = "PSD-M",
     colour  = "Scenario",
     shape   = "Scenario",
     caption = "Dashed line = 30% SPR reference"
@@ -249,12 +248,12 @@ p_tradeoff <- ggplot(results,
 
 # 4. Summary metrics faceted bar chart (pivot to long form)
 summary_long <- results |>
-  select(scenario, YPR, SPR, trophy_proportion, mean_harvested_len) |>
+  select(scenario, YPR, SPR, psdm, mean_harvested_len) |>
   pivot_longer(-scenario, names_to = "metric", values_to = "value") |>
   mutate(metric = recode(metric,
     "YPR"                = "Yield per Recruit",
     "SPR"                = "Spawning Potential Ratio",
-    "trophy_proportion"  = "Trophy Proportion",
+    "psdm"  = "PSD-M",
     "mean_harvested_len" = "Mean Harvested Length (mm)"
   ))
 
@@ -319,20 +318,20 @@ p_curve_spr <- ggplot(curves,
   theme(legend.position = "bottom",
         legend.direction = "vertical")
 
-# 7. Trophy-proportion curves vs. U
-p_curve_trophy <- ggplot(curves,
-                         aes(x = U, y = Prop_mean,
+# 7. PSD-M curves vs. U
+p_curve_psdm <- ggplot(curves,
+                         aes(x = U, y = PSDM_mean,
                              colour = scenario, fill = scenario)) +
-  geom_ribbon(aes(ymin = Prop_mean - Prop_sd,
-                  ymax = Prop_mean + Prop_sd),
+  geom_ribbon(aes(ymin = PSDM_mean - PSDM_sd,
+                  ymax = PSDM_mean + PSDM_sd),
               alpha = 0.15, colour = NA) +
   geom_line(linewidth = 0.9) +
   geom_vline(xintercept = U_fixed, linetype = "dotted",
              colour = "grey30", linewidth = 0.7) +
   labs(
-    title   = "Trophy Proportion Curves by Regulation Scenario",
+    title   = "PSD-M Curves by Regulation Scenario",
     x       = "Exploitation rate (U)",
-    y       = "Trophy proportion (mean ± 1 SD)",
+    y       = "PSD-M (mean ± 1 SD)",
     colour  = "Scenario",
     fill    = "Scenario",
     caption = "Dotted line = current U"
@@ -348,8 +347,8 @@ print(p_tradeoff)
 print(p_summary)
 print(p_curve_ypr)
 print(p_curve_spr)
-print(p_curve_trophy)
+print(p_curve_psdm)
 
 message("\nDone. Objects available in workspace: results, curves, ",
         "p_ypr, p_spr, p_tradeoff, p_summary, ",
-        "p_curve_ypr, p_curve_spr, p_curve_trophy")
+        "p_curve_ypr, p_curve_spr, p_curve_psdm")
