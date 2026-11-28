@@ -45,7 +45,7 @@ growth_levels <- c("slow", "moderate", "fast")
 
 dir.create("figures", showWarnings = FALSE)
 
-make_line_figure <- function(df, species_label, scen_levels) {
+make_line_figure <- function(df, scen_levels) {
   
   summary_df <- df |>
     mutate(
@@ -112,7 +112,7 @@ make_line_figure <- function(df, species_label, scen_levels) {
                           labels = c("Slow", "Moderate", "Fast")) +
     scale_x_continuous(labels = scales::percent_format()) +
     scale_y_continuous(labels = scales::percent_format(), limits = c(0, NA)) +
-    labs(y = "Prop. memorable", x = "Exploitation rate (U)") +
+    labs(y = "PSD-M", x = "Exploitation rate (U)") +
     base_theme +
     theme(
       legend.position = "bottom",
@@ -123,18 +123,13 @@ make_line_figure <- function(df, species_label, scen_levels) {
       plot.margin     = margin(0, 5, 10, 5)
     )
   
-  title <- ggdraw() +
-    draw_label(species_label, fontface = "bold", size = 13, x = 0, hjust = 0) +
-    theme(plot.margin = margin(0, 0, 0, 7))
-  
-  body <- plot_grid(p_spr, p_ypr, p_prop, ncol = 1,
-                    rel_heights = c(1, 1, 1.6),
-                    align = "v", axis = "lr")
-  
-  plot_grid(title, body, ncol = 1, rel_heights = c(0.03, 1))
+  # Species names go in the manuscript figure captions, not on the figure.
+  plot_grid(p_spr, p_ypr, p_prop, ncol = 1,
+            rel_heights = c(1, 1, 1.6),
+            align = "v", axis = "lr")
 }
 
-make_violin_figure <- function(df, species_label, scen_levels, target_U,
+make_violin_figure <- function(df, scen_levels, target_U,
                                ypr_from_zero = FALSE, dot_size = 0.3,
                                growth = "moderate") {
   
@@ -167,7 +162,9 @@ make_violin_figure <- function(df, species_label, scen_levels, target_U,
   make_vp <- function(metric, xlab, hline = NULL, pct = FALSE, from_zero = FALSE) {
     p <- ggplot(violin_df, aes(y = scenario, x = .data[[metric]], fill = scenario)) +
       geom_violin(alpha = 0.6, colour = "grey50", linewidth = 0.3, trim = TRUE) +
-      stat_summary(fun = median,
+      # Points are means (matching the Results text and Table S1); bars are
+      # the 2.5% and 97.5% quantiles.
+      stat_summary(fun = mean,
                    fun.min = function(x) quantile(x, 0.025),
                    fun.max = function(x) quantile(x, 0.975),
                    geom = "pointrange", colour = "black",
@@ -191,35 +188,30 @@ make_violin_figure <- function(df, species_label, scen_levels, target_U,
     theme(axis.text.y = element_text(),
           plot.margin = margin(5.5, 5.5, 5.5, 20))
   p_ypr  <- make_vp("YPR",  "YPR (kg)", from_zero = ypr_from_zero)
-  p_prop <- make_vp("Prop", "Prop. memorable", pct = TRUE)
+  p_prop <- make_vp("Prop", "PSD-M", pct = TRUE)
   
-  title <- ggdraw() +
-    draw_label(species_label, fontface = "bold", size = 13, x = 0, hjust = 0) +
-    theme(plot.margin = margin(0, 0, 0, 7))
-  
-  body <- plot_grid(p_spr, p_ypr, p_prop, ncol = 3,
-                    rel_widths = c(1.4, 1, 1),
-                    align = "h", axis = "tb")
-  
-  plot_grid(title, body, ncol = 1, rel_heights = c(0.03, 1))
+  # Species names go in the manuscript figure captions, not on the figure.
+  plot_grid(p_spr, p_ypr, p_prop, ncol = 3,
+            rel_widths = c(1.4, 1, 1),
+            align = "h", axis = "tb")
 }
 
-line_crappie <- make_line_figure(crappie, "White Crappie",
+line_crappie <- make_line_figure(crappie,
                                  c("No regulation", "Min. 254 mm", "Max. 305 mm", "Slot 254-356 mm"))
-line_walleye <- make_line_figure(walleye, "Walleye",
+line_walleye <- make_line_figure(walleye,
                                  c("Min. 356 mm", "Min. 457 mm", "Slot 356-457 mm"))
-line_lmb <- make_line_figure(lmb, "Largemouth Bass (South)",
+line_lmb <- make_line_figure(lmb,
                              c("Min. 305 mm, low D", "Min. 305 mm, high D",
                                "Slot 305-508 mm, low D", "Slot 305-508 mm, high D"))
 
-violin_crappie <- make_violin_figure(crappie, "White Crappie",
+violin_crappie <- make_violin_figure(crappie,
                                      c("No regulation", "Min. 254 mm", "Max. 305 mm", "Slot 254-356 mm"),
                                      target_U = c(0.30, 0.50, 0.70))
-violin_walleye <- make_violin_figure(walleye, "Walleye",
+violin_walleye <- make_violin_figure(walleye,
                                      c("Min. 356 mm", "Min. 457 mm", "Slot 356-457 mm"),
                                      target_U = c(0.15, 0.30, 0.50),
                                      ypr_from_zero = TRUE, dot_size = 0.18)
-violin_lmb <- make_violin_figure(lmb, "Largemouth Bass (South)",
+violin_lmb <- make_violin_figure(lmb,
                                  c("Min. 305 mm, low D", "Min. 305 mm, high D",
                                    "Slot 305-508 mm, low D", "Slot 305-508 mm, high D"),
                                  target_U = c(0.10, 0.25, 0.50),
@@ -252,10 +244,11 @@ bind_rows(crappie, walleye, lmb) |>
     SPR_q025  = quantile(SPR,  0.025),
     SPR_q975  = quantile(SPR,  0.975),
     SPR_sd    = sd(SPR),
-    Prop_mean = mean(Prop),
-    Prop_q025 = quantile(Prop, 0.025),
-    Prop_q975 = quantile(Prop, 0.975),
-    Prop_sd   = sd(Prop),
+    # PSD-M: proportion of stock-size fish that are memorable size
+    PSDM_mean = mean(Prop),
+    PSDM_q025 = quantile(Prop, 0.025),
+    PSDM_q975 = quantile(Prop, 0.975),
+    PSDM_sd   = sd(Prop),
     n         = n(),
     .groups   = "drop"
   ) |>
