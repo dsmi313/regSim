@@ -1,5 +1,15 @@
 # regSim (development version)
 
+* The size-structure output is now called PSD-M (proportional size
+  distribution of memorable-size fish; Gabelhouse 1984, Guy et al. 2007)
+  throughout the app, the manuscript figures, the documentation, and the code,
+  replacing "proportion memorable". The calculation is unchanged.
+  **Breaking:** output columns are renamed `Prop` -> `PSDM` (in
+  `run_population_simulation()$sim_df` and `run_uncertainty_simulation()`),
+  `all_Prop` -> `all_PSDM`, and `Prop_mean`/`Prop_sd`/`Prop_n` -> `PSDM_mean`/
+  `PSDM_sd`/`PSDM_n` (in `run_yield_curve()` and the time-series summaries).
+  `scripts/manuscript_figures.R` still reads results saved with `Prop`.
+
 * Largemouth Bass now has separate northern and southern presets, shown in the
   app as "Largemouth Bass (North)" (`lmb_north`) and "Largemouth Bass (South)"
   (`lmb_south`). The old `lmb` key is removed. The previous Largemouth Bass

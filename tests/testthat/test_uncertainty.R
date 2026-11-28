@@ -51,7 +51,7 @@ test_that("summarize_uncertainty_results returns required columns and row count"
   fake <- data.frame(
     YPR                 = runif(100, 0.01, 0.10),
     SPR                 = runif(100, 0.20, 0.80),
-    Prop                = runif(100, 0.00, 0.30),
+    PSDM                = runif(100, 0.00, 0.30),
     MeanLengthHarvested = runif(100, 200,  350)
   )
   summ <- summarize_uncertainty_results(fake)
@@ -69,20 +69,20 @@ test_that("summarize_uncertainty_timeseries pools draws into per-year bands", {
   # One Ymax x ninner matrix per parameter draw, for each metric.
   mk <- function(scale) lapply(seq_len(ndraw), function(d)
     matrix(runif(Ymax * ninner, 0, scale), nrow = Ymax, ncol = ninner))
-  ypr  <- mk(0.1); spr <- mk(1); prop <- mk(0.3); egg <- mk(1e6)
+  ypr  <- mk(0.1); spr <- mk(1); psdm <- mk(0.3); egg <- mk(1e6)
 
-  band <- summarize_uncertainty_timeseries(ypr, spr, prop, egg, Ymax)
+  band <- summarize_uncertainty_timeseries(ypr, spr, psdm, egg, Ymax)
 
   expect_equal(nrow(band), Ymax)
   expect_true(all(c("Year",
                     "YPR_med", "YPR_lower", "YPR_upper",
                     "SPR_med", "SPR_lower", "SPR_upper",
-                    "Prop_med", "Prop_lower", "Prop_upper",
+                    "PSDM_med", "PSDM_lower", "PSDM_upper",
                     "EggProd_med", "EggProd_lower", "EggProd_upper") %in% names(band)))
   # Band must be ordered lower <= median <= upper in every year and metric.
   expect_true(all(band$YPR_lower  <= band$YPR_med  & band$YPR_med  <= band$YPR_upper))
   expect_true(all(band$SPR_lower  <= band$SPR_med  & band$SPR_med  <= band$SPR_upper))
-  expect_true(all(band$Prop_lower <= band$Prop_med & band$Prop_med <= band$Prop_upper))
+  expect_true(all(band$PSDM_lower <= band$PSDM_med & band$PSDM_med <= band$PSDM_upper))
   expect_true(all(band$EggProd_lower <= band$EggProd_med &
                   band$EggProd_med   <= band$EggProd_upper))
 })

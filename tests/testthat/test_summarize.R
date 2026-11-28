@@ -3,7 +3,7 @@ make_fake_sim_out <- function(Ymax = 5, nsim = 4, L_bins = 3, Amax = 2) {
   list(
     all_YPR          = matrix(seq_len(Ymax * nsim), Ymax, nsim),
     all_SPR          = matrix(seq_len(Ymax * nsim) / 100, Ymax, nsim),
-    all_Prop         = matrix(seq_len(Ymax * nsim) / (Ymax * nsim), Ymax, nsim),
+    all_PSDM         = matrix(seq_len(Ymax * nsim) / (Ymax * nsim), Ymax, nsim),
     all_EggProd      = matrix(seq_len(Ymax * nsim) * 10, Ymax, nsim),
     all_Abundance    = matrix(seq_len(L_bins * nsim), L_bins, nsim),
     all_AgeAbundance = matrix(seq_len(Amax * nsim), Amax, nsim),
@@ -27,7 +27,7 @@ test_that("summarize_timeseries returns one row per year with expected columns",
   ts <- summarize_timeseries(s, Ymax = 5)
   expect_equal(nrow(ts), 5)
   expect_true(all(c("YPR_mean", "YPR_lower", "YPR_upper",
-                    "SPR_mean", "SPR_lower", "Prop_upper", "EggProd_lower",
+                    "SPR_mean", "SPR_lower", "PSDM_upper", "EggProd_lower",
                     "burnin_years") %in% names(ts)))
 })
 
@@ -38,13 +38,13 @@ test_that("summarize_timeseries means match rowMeans of the input", {
   expect_equal(ts$EggProd_mean, rowMeans(s$all_EggProd))
 })
 
-test_that("summarize_timeseries lower bounds are clamped at 0 and Prop_upper at 1", {
+test_that("summarize_timeseries lower bounds are clamped at 0 and PSDM_upper at 1", {
   s  <- make_fake_sim_out()
   ts <- summarize_timeseries(s, Ymax = 5)
   expect_true(all(ts$YPR_lower  >= 0))
   expect_true(all(ts$SPR_lower  >= 0))
-  expect_true(all(ts$Prop_lower >= 0))
-  expect_true(all(ts$Prop_upper <= 1))
+  expect_true(all(ts$PSDM_lower >= 0))
+  expect_true(all(ts$PSDM_upper <= 1))
 })
 
 test_that("summarize_timeseries carries burnin_years through", {

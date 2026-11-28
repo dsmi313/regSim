@@ -22,7 +22,7 @@ test_that("run_yield_curve returns one row per U with expected columns", {
                  c(make_yc_inputs(), list(U_values = c(0, 0.3, 0.6))))
   expect_equal(nrow(out), 3)
   expect_equal(out$U, c(0, 0.3, 0.6))
-  expect_true(all(c("YPR_mean", "SPR_mean", "Prop_mean",
+  expect_true(all(c("YPR_mean", "SPR_mean", "PSDM_mean",
                     "Recruit_mean", "TotalYield_mean") %in% names(out)))
 })
 

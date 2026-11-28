@@ -50,8 +50,8 @@ run_yield_curve <- function(bin_midpoints, length_bins,
     YPR_n           = integer(n_points),
     SPR_mean        = numeric(n_points), SPR_sd        = numeric(n_points),
     SPR_n           = integer(n_points),
-    Prop_mean       = numeric(n_points), Prop_sd       = numeric(n_points),
-    Prop_n          = integer(n_points),
+    PSDM_mean       = numeric(n_points), PSDM_sd       = numeric(n_points),
+    PSDM_n          = integer(n_points),
     Recruit_mean    = numeric(n_points), Recruit_sd    = numeric(n_points),
     TotalYield_mean = numeric(n_points), TotalYield_sd = numeric(n_points)
   )
@@ -84,9 +84,9 @@ run_yield_curve <- function(bin_midpoints, length_bins,
     curve_results$SPR_mean[u_idx]        <- mean(df$SPR,        na.rm = TRUE)
     curve_results$SPR_sd[u_idx]          <- sd(df$SPR,          na.rm = TRUE)
     curve_results$SPR_n[u_idx]           <- nsim
-    curve_results$Prop_mean[u_idx]       <- mean(df$Prop,       na.rm = TRUE)
-    curve_results$Prop_sd[u_idx]         <- sd(df$Prop,         na.rm = TRUE)
-    curve_results$Prop_n[u_idx]          <- nsim
+    curve_results$PSDM_mean[u_idx]       <- mean(df$PSDM,       na.rm = TRUE)
+    curve_results$PSDM_sd[u_idx]         <- sd(df$PSDM,         na.rm = TRUE)
+    curve_results$PSDM_n[u_idx]          <- nsim
     curve_results$Recruit_mean[u_idx]    <- mean(df$Recruit,    na.rm = TRUE)
     curve_results$Recruit_sd[u_idx]      <- sd(df$Recruit,      na.rm = TRUE)
     curve_results$TotalYield_mean[u_idx] <- mean(total_yield_vals, na.rm = TRUE)

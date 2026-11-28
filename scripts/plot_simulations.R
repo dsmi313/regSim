@@ -138,11 +138,11 @@ make_species_plots <- function(cfg) {
       YPR_hi     = quantile(YPR, 0.75),
       YPR_p05    = quantile(YPR, 0.05),
       YPR_p95    = quantile(YPR, 0.95),
-      # Trophy proportion (Prop = proportion >= memorable size)
-      Prop_mean  = mean(Prop),
-      Prop_med   = median(Prop),
-      Prop_lo    = quantile(Prop, 0.25),
-      Prop_hi    = quantile(Prop, 0.75),
+      # PSD-M (memorable-size fish / stock-size fish)
+      PSDM_mean  = mean(PSDM),
+      PSDM_med   = median(PSDM),
+      PSDM_lo    = quantile(PSDM, 0.25),
+      PSDM_hi    = quantile(PSDM, 0.75),
       # Mean harvested length
       MHL_mean   = mean(MeanLengthHarvested),
       MHL_lo     = quantile(MeanLengthHarvested, 0.25),
@@ -192,10 +192,10 @@ make_species_plots <- function(cfg) {
          x = "Exploitation rate (U)", y = "Yield per recruit (YPR)") +
     base_theme
 
-  # ── Figure 3: Trophy proportion vs. exploitation rate ───────────────────
-  p_trophy <- ggplot(summary_df, aes(x = U, colour = scenario, fill = scenario)) +
-    geom_ribbon(aes(ymin = Prop_lo, ymax = Prop_hi), alpha = 0.20, colour = NA) +
-    geom_line(aes(y = Prop_mean), linewidth = 0.9) +
+  # ── Figure 3: PSD-M vs. exploitation rate ───────────────────
+  p_psdm <- ggplot(summary_df, aes(x = U, colour = scenario, fill = scenario)) +
+    geom_ribbon(aes(ymin = PSDM_lo, ymax = PSDM_hi), alpha = 0.20, colour = NA) +
+    geom_line(aes(y = PSDM_mean), linewidth = 0.9) +
     facet_wrap(~ growth_preset, ncol = 3,
                labeller = labeller(growth_preset = growth_lab)) +
     scale_x_continuous(labels = scales::percent_format()) +
@@ -203,7 +203,7 @@ make_species_plots <- function(cfg) {
     scale_colour_manual(values = cfg$scen_colors, name = "Regulation") +
     scale_fill_manual(  values = cfg$scen_colors, name = "Regulation") +
     labs(title = cfg$label,
-         x = "Exploitation rate (U)", y = "Proportion >= memorable size") +
+         x = "Exploitation rate (U)", y = "PSD-M") +
     base_theme
 
   # ── Violin data: target U levels at one growth preset ───────────────────
@@ -291,7 +291,7 @@ make_species_plots <- function(cfg) {
     summary_df   = summary_df,
     p_spr        = p_spr,
     p_ypr        = p_ypr,
-    p_trophy     = p_trophy,
+    p_psdm     = p_psdm,
     p_violin_spr = p_violin_spr,
     p_violin_ypr = p_violin_ypr,
     p_heat       = p_heat,
@@ -325,7 +325,7 @@ for (sp_key in names(species_config)) {
 # ===========================================================================
 
 plot_dims <- list(
-  p_spr        = c(8, 4), p_ypr        = c(8, 4), p_trophy     = c(8, 4),
+  p_spr        = c(8, 4), p_ypr        = c(8, 4), p_psdm     = c(8, 4),
   p_violin_spr = c(8, 5), p_violin_ypr = c(8, 5),
   p_heat       = c(8, 4), p_tradeoff   = c(6, 5)
 )

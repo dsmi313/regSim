@@ -148,7 +148,7 @@ test_that("run_population_simulation returns expected structure (full output)", 
                  c(inp, collect_full_output = TRUE))
 
   expect_named(out, c("sim_df", "burnin_years",
-                      "all_YPR", "all_SPR", "all_Prop", "all_EggProd",
+                      "all_YPR", "all_SPR", "all_PSDM", "all_EggProd",
                       "all_Abundance", "all_AgeAbundance"),
                ignore.order = TRUE)
   expect_equal(nrow(out$sim_df), inp$nsim)
@@ -238,7 +238,7 @@ test_that("fast path sim_df columns are finite and biologically plausible", {
   expect_true(all(is.finite(df$SPR)))
   expect_true(all(df$SPR    >= 0))
   expect_true(all(df$YPR    >= 0, na.rm = TRUE))
-  expect_true(all(df$Prop   >= 0 & df$Prop   <= 1, na.rm = TRUE))
+  expect_true(all(df$PSDM   >= 0 & df$PSDM   <= 1, na.rm = TRUE))
   expect_true(all(df$Recruit > 0, na.rm = TRUE))
 })
 
@@ -309,7 +309,7 @@ test_that("slot and maximum length edges have SD = 1% of the edge length", {
   expect_equal(vc$Vulharv_bins[j] / vc$Vulcap_bins[j], 1 / (1 + exp(10 / 3.05)), tolerance = 1e-9)
 })
 
-test_that("proportion memorable is relative to stock-size fish", {
+test_that("PSD-M is relative to stock-size fish", {
   g   <- make_wc_grid()
   arg <- list(g$bin_midpoints, 204, 254, 180, 305, 2.40991e-6, 3.38, 0.374, 1.27)
   vc_all   <- do.call(make_vulnerability_curves, arg)
@@ -320,9 +320,9 @@ test_that("proportion memorable is relative to stock-size fish", {
   inp$stockvul_bins <- vc_stock$stockvul_bins
   stock    <- do.call(run_population_simulation, c(inp, collect_full_output = TRUE))
   N <- stock$all_Abundance[, 1]
-  expect_equal(stock$sim_df$Prop,
+  expect_equal(stock$sim_df$PSDM,
                sum(inp$trophyvul_bins * N) / sum(vc_stock$stockvul_bins * N), tolerance = 1e-6)
-  expect_gt(stock$sim_df$Prop, all_fish$sim_df$Prop)
+  expect_gt(stock$sim_df$PSDM, all_fish$sim_df$PSDM)
 })
 
 test_that("recruitment noise under density-dependent recruitment is mean-corrected", {

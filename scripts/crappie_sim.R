@@ -213,7 +213,7 @@ cat("  Combinations :", n_combos, "(4 scenarios x 3 growth x 3 U x 3 growth CV)\
 cat("  Replicates   :", nsim, "per combination\n\n")
 
 # ── Main simulation loop ──────────────────────────────────────────────────────
-# sim_df columns: sim, YPR, SPR, Prop, MeanLengthHarvested, Recruit
+# sim_df columns: sim, YPR, SPR, PSDM, MeanLengthHarvested, Recruit
 #   SPR = stock egg production relative to the unfished equilibrium
 #         (stochastic; may exceed 1 in favourable recruitment years)
 results_list <- with_progress({

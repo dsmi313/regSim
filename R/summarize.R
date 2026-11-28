@@ -3,12 +3,12 @@
 #' Collapses the per-year, per-replicate matrices from
 #' \code{\link{run_population_simulation}} (run with
 #' \code{collect_full_output = TRUE}) into yearly means, standard deviations, and
-#' 95\% prediction intervals for YPR, SPR, proportion memorable, and spawning
+#' 95\% prediction intervals for YPR, SPR, PSD-M, and spawning
 #' stock biomass.
 #'
 #' @param sim_out The list returned by \code{\link{run_population_simulation}}
 #'   with full output (must contain \code{all_YPR}, \code{all_SPR},
-#'   \code{all_Prop}, \code{all_EggProd}, and \code{burnin_years}).
+#'   \code{all_PSDM}, \code{all_EggProd}, and \code{burnin_years}).
 #' @param Ymax Number of years simulated.
 #'
 #' @return A data.frame with one row per year, containing mean/sd/lower/upper
@@ -22,8 +22,8 @@ summarize_timeseries <- function(sim_out, Ymax) {
     YPR_sd    = apply(sim_out$all_YPR,  1, sd, na.rm = TRUE),
     SPR_mean  = rowMeans(sim_out$all_SPR,  na.rm = TRUE),
     SPR_sd    = apply(sim_out$all_SPR,  1, sd, na.rm = TRUE),
-    Prop_mean = rowMeans(sim_out$all_Prop, na.rm = TRUE),
-    Prop_sd   = apply(sim_out$all_Prop, 1, sd, na.rm = TRUE),
+    PSDM_mean = rowMeans(sim_out$all_PSDM, na.rm = TRUE),
+    PSDM_sd   = apply(sim_out$all_PSDM, 1, sd, na.rm = TRUE),
     EggProd_mean = rowMeans(sim_out$all_EggProd, na.rm = TRUE),
     EggProd_sd   = apply(sim_out$all_EggProd, 1, sd, na.rm = TRUE)
   )
@@ -32,8 +32,8 @@ summarize_timeseries <- function(sim_out, Ymax) {
   ts_data$YPR_upper  <- ts_data$YPR_mean  + 1.96 * ts_data$YPR_sd
   ts_data$SPR_lower  <- pmax(0, ts_data$SPR_mean  - 1.96 * ts_data$SPR_sd)
   ts_data$SPR_upper  <- ts_data$SPR_mean  + 1.96 * ts_data$SPR_sd
-  ts_data$Prop_lower <- pmax(0, ts_data$Prop_mean - 1.96 * ts_data$Prop_sd)
-  ts_data$Prop_upper <- pmin(1, ts_data$Prop_mean + 1.96 * ts_data$Prop_sd)
+  ts_data$PSDM_lower <- pmax(0, ts_data$PSDM_mean - 1.96 * ts_data$PSDM_sd)
+  ts_data$PSDM_upper <- pmin(1, ts_data$PSDM_mean + 1.96 * ts_data$PSDM_sd)
   ts_data$EggProd_lower <- pmax(0, ts_data$EggProd_mean - 1.96 * ts_data$EggProd_sd)
   ts_data$EggProd_upper <- ts_data$EggProd_mean + 1.96 * ts_data$EggProd_sd
   ts_data
