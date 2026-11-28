@@ -1,5 +1,10 @@
 # regSim (development version)
 
+* The size-structure output is now labeled PSD-M (proportional size
+  distribution of memorable-size fish; Gabelhouse 1984, Guy et al. 2007)
+  throughout the app and the manuscript figures, replacing "proportion
+  memorable". The calculation is unchanged.
+
 * Largemouth Bass now has separate northern and southern presets, shown in the
   app as "Largemouth Bass (North)" (`lmb_north`) and "Largemouth Bass (South)"
   (`lmb_south`). The old `lmb` key is removed. The previous Largemouth Bass

@@ -42,7 +42,7 @@ ui <- fluidPage(
       
       numericInput("memorable_size", "Memorable Size (mm):", value = 300, min = 100, max = 700, step = 5),
       numericInput("stock_size", "Stock Size (mm):", value = 130, min = 50, max = 400, step = 1),
-      helpText(tags$small(tags$em("Proportion memorable = memorable-size fish / stock-size fish (Gabelhouse 1984 length categories)."))),
+      helpText(tags$small(tags$em("PSD-M = memorable-size fish / stock-size fish (Gabelhouse 1984 length categories; Guy et al. 2007)."))),
       helpText(tags$small(tags$em("Trophy/quality fish threshold"))),
       
       numericInput("nat_mort", "Natural Mortality (M):", value = 0.35, min = 0.05, max = 1.0, step = 0.01),
@@ -325,7 +325,7 @@ ui <- fluidPage(
                    tags$li(strong("SPR:"), "Spawning Potential Ratio - stock egg production relative to the unfished equilibrium; values > 1 occur in favourable recruitment years"),
                    tags$li(strong("Equilibrium Recruitment:"), "Recruits at equilibrium under DDR"),
                    tags$li(strong("Population Structure:"), "Age and length distributions with 95% prediction intervals"),
-                   tags$li(strong("Prop Memorable:"), "Proportion of trophy/quality-sized fish in population")
+                   tags$li(strong("PSD-M:"), "Proportional size distribution of memorable-size fish: the proportion of stock-size fish that are memorable size (Gabelhouse 1984; Guy et al. 2007)")
                  ),
                  br(),
                  h4("References"),
@@ -337,6 +337,7 @@ ui <- fluidPage(
                  p("Froese, R. and D. Pauly. Editors. 2024. FishBase. World Wide Web electronic publication. ",
                    a(href = "https://www.fishbase.org", "www.fishbase.org")),
                  p("Gabelhouse, D.W., Jr. 1984. A length-categorization system to assess fish stocks. North American Journal of Fisheries Management 4:273-285."),
+                 p("Guy, C.S., R.M. Neumann, D.W. Willis, and R.O. Anderson. 2007. Proportional size distribution (PSD): a further refinement of population size structure index terminology. Fisheries 32:348."),
                  p("Allen, M.S. and W.E. Pine III. 2000. Detecting fish population responses to a minimum length limit: effects of variable recruitment and duration of evaluation. North American Journal of Fisheries Management 20:672-682."),
                  p("Helser, T.E. and H.-L. Lai. 2004. A Bayesian hierarchical meta-analysis of fish growth: with an example for North American largemouth bass, Micropterus salmoides. Ecological Modelling 178:399-416."),
                  p("Jensen, A.L. 1996. Beverton and Holt life history invariants result from optimal trade-off of reproduction and survival. Canadian Journal of Fisheries and Aquatic Sciences 53:820-822."),
@@ -605,7 +606,7 @@ server <- function(input, output, session) {
         cat("\n")
         for (w in checks$warnings) cat(paste0("  ⚠️  WARNING: ", w, "\n"))
       }
-      cat(sprintf("  Prop Memorable:   %.4f ± %.4f\n",
+      cat(sprintf("  PSD-M:            %.4f ± %.4f\n",
                   mean(results$Prop, na.rm = TRUE),
                   sd(results$Prop, na.rm = TRUE)))
     } else {
@@ -634,7 +635,7 @@ server <- function(input, output, session) {
         cat("\n")
         for (w in checks$warnings) cat(paste0("  ⚠️  WARNING: ", w, "\n"))
       }
-      cat(sprintf("  Prop Memorable:   %.4f [%.4f, %.4f]\n",
+      cat(sprintf("  PSD-M:            %.4f [%.4f, %.4f]\n",
                   prop_row$median, prop_row$lower95, prop_row$upper95))
     }
   })
@@ -705,9 +706,9 @@ server <- function(input, output, session) {
       geom_violin(fill = "orange", alpha = 0.7, color = "black") +
       geom_boxplot(width = 0.1, fill = "white", alpha = 0.5) +
       stat_summary(fun = mean, geom = "point", color = "red", size = 3) +
-      labs(title = paste0("Proportion of Memorable-Sized Fish (≥", memorable_inches, " inches)"),
+      labs(title = paste0("PSD-M (memorable ≥", memorable_inches, " inches)"),
            subtitle = sub,
-           x = "", y = "Proportion") +
+           x = "", y = "PSD-M") +
       theme_minimal() +
       theme(axis.text.x = element_blank())
     ggplotly(p)
@@ -772,9 +773,9 @@ server <- function(input, output, session) {
       band_geom("Prop_lower", "Prop_upper", "darkorange") +
       geom_line(color = "darkorange", size = 1) +
       geom_vline(xintercept = burnin_years_plot, linetype = "dotted", color = "gray40", alpha = 0.7) +
-      labs(title = paste0("Proportion Memorable (≥", memorable_inches, "\") Over Time"),
+      labs(title = paste0("PSD-M (memorable ≥", memorable_inches, "\") Over Time"),
            subtitle = band_lbl,
-           x = "", y = "Proportion") +
+           x = "", y = "PSD-M") +
       theme_minimal()
     p4 <- ggplot(ts_data, aes(x = Year, y = EggProd_mean)) +
       annotate("rect", xmin = 1, xmax = burnin_years_plot, ymin = -Inf, ymax = Inf,
@@ -914,7 +915,7 @@ server <- function(input, output, session) {
            x = "Total Length (mm)", y = "Vulnerability",
            color = "Type") +
       scale_color_manual(values = c("VulCapture" = "blue", "VulHarvest" = "red", "VulTrophy" = "goldenrod"),
-                         labels = c("Capture", "Harvest", "Trophy/Memorable")) +
+                         labels = c("Capture", "Harvest", "Memorable")) +
       theme_minimal()
     ggplotly(p) %>%
       layout(legend = list(orientation = "h", x = 0.5, xanchor = "center", y = -0.2))
@@ -1062,8 +1063,8 @@ server <- function(input, output, session) {
       geom_violin(alpha = 0.7) +
       geom_boxplot(width = 0.1, fill = "white", alpha = 0.5) +
       stat_summary(fun = mean, geom = "point", color = "red", size = 3) +
-      labs(title = "Proportion Memorable Fish Comparison",
-           x = "Scenario", y = "Proportion") +
+      labs(title = "PSD-M Comparison",
+           x = "Scenario", y = "PSD-M") +
       theme_minimal() +
       theme(axis.text.x = element_text(angle = 45, hjust = 1),
             legend.position = "none")
@@ -1086,12 +1087,12 @@ server <- function(input, output, session) {
         `L∞` = Linf,
         `YPR` = YPR_mean,
         `SPR` = SPR_mean,
-        `Prop Memorable` = Prop_mean
+        `PSD-M` = Prop_mean
       ) %>%
       mutate(`U (%)` = round(`U (%)` * 100, 1),
              YPR = round(YPR, 4),
              SPR = round(SPR, 4),
-             `Prop Memorable` = round(`Prop Memorable`, 4))
+             `PSD-M` = round(`PSD-M`, 4))
   }, striped = TRUE, hover = TRUE, bordered = TRUE)
 
   observeEvent(input$run_yield_curve, {
@@ -1241,10 +1242,10 @@ server <- function(input, output, session) {
       geom_ribbon(aes(ymin = Prop_lower, ymax = Prop_upper),
                   alpha = 0.2, fill = "darkorange") +
       geom_point(color = "darkorange", size = 2) +
-      labs(title = paste0("Proportion of Memorable-Sized Fish (≥", memorable_inches, "\") vs Exploitation Rate"),
+      labs(title = paste0("PSD-M (memorable ≥", memorable_inches, "\") vs Exploitation Rate"),
            subtitle = "Shaded band: 95% of population outcomes due to recruitment variability",
            x = "Exploitation Rate (%)",
-           y = "Proportion Memorable") +
+           y = "PSD-M") +
       theme_minimal()
     ggplotly(p)
   })
